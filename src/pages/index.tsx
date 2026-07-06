@@ -1,10 +1,33 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Layout } from '@/components/Layout';
-import { HiArrowRight, HiShoppingCart, HiBookOpen, HiUserGroup, HiLightningBolt } from 'react-icons/hi';
+import { HiArrowRight } from 'react-icons/hi';
+import { supabase } from '@/lib/supabase';
+import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from '@/lib/siteConfig';
+import type { Book } from '@/types';
 
 export default function Home() {
+  const [featuredBooks, setFeaturedBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFeaturedBooks = async () => {
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .eq('availability', 'in-stock')
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (!error && data) {
+        setFeaturedBooks(data as Book[]);
+      }
+      setLoading(false);
+    };
+
+    loadFeaturedBooks();
+  }, []);
+
   const categories = [
     { name: 'Novels', icon: '📖', color: 'bg-blue-100' },
     { name: 'Competitive Exams', icon: '📚', color: 'bg-green-100' },
@@ -16,43 +39,8 @@ export default function Home() {
     { name: 'Foreign', icon: '🌍', color: 'bg-indigo-100' },
   ];
 
-  const featuredBooks = [
-    {
-      id: 1,
-      title: 'The Alchemist',
-      author: 'Paulo Coelho',
-      price: 250,
-      image: '📖',
-      condition: 'Like New',
-    },
-    {
-      id: 2,
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      price: 350,
-      image: '📗',
-      condition: 'Good',
-    },
-    {
-      id: 3,
-      title: 'Sapiens',
-      author: 'Yuval Noah Harari',
-      price: 450,
-      image: '📕',
-      condition: 'New',
-    },
-    {
-      id: 4,
-      title: 'The Midnight Library',
-      author: 'Matt Haig',
-      price: 280,
-      image: '📙',
-      condition: 'Good',
-    },
-  ];
-
   return (
-    <Layout title="Home - India's Largest Book Marketplace">
+    <Layout title={`Home - ${APP_NAME}`} description={APP_DESCRIPTION}>
       {/* Hero Section */}
       <section className="relative bg-gradient-primary text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -65,10 +53,10 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-                Every Book Finds a Reader
+                {APP_TAGLINE}
               </h1>
               <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-lg">
-                India's largest marketplace for buying, selling, exchanging, and discovering millions of books.
+                {APP_DESCRIPTION}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/books" className="px-8 py-4 bg-accent text-gray-900 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center space-x-2">
@@ -160,24 +148,38 @@ export default function Home() {
               <HiArrowRight className="w-5 h-5" />
             </Link>
           </div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {featuredBooks.map((book) => (
-              <div key={book.id} className="bg-white rounded-card overflow-hidden hover:shadow-lg transition cursor-pointer">
-                <div className="relative aspect-[3/4] bg-gray-100 flex items-center justify-center text-6xl overflow-hidden group">
-                  {book.image}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition"></div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 line-clamp-2">{book.title}</h3>
-                  <p className="text-sm text-gray-500 mb-2">{book.author}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-primary text-lg">₹{book.price}</span>
-                    <span className="text-xs bg-accent text-gray-900 px-2 py-1 rounded">{book.condition}</span>
+          {loading ? (
+            <div className="text-center text-gray-500">Loading featured books…</div>
+          ) : featuredBooks.length === 0 ? (
+            <div className="rounded-card border border-dashed border-gray-300 p-8 text-center text-gray-500">
+              No books are available yet. Start by adding a book listing through the Sell page.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-4 gap-6">
+              {featuredBooks.map((book) => (
+                <Link key={book.id} href={`/book/${book.id}`}>
+                  <div className="bg-white rounded-card overflow-hidden hover:shadow-lg transition cursor-pointer">
+                    <div className="relative aspect-[3/4] bg-gray-100 flex items-center justify-center overflow-hidden group">
+                      {book.image_urls?.[0] ? (
+                        <img src={book.image_urls[0]} alt={book.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="text-6xl">📚</div>
+                      )}
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition"></div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 line-clamp-2">{book.title}</h3>
+                      <p className="text-sm text-gray-500 mb-2">{book.author}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-primary text-lg">₹{book.price}</span>
+                        <span className="text-xs bg-accent text-gray-900 px-2 py-1 rounded">{book.condition}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

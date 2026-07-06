@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import Head from 'next/head';
+import { APP_NAME, APP_TAGLINE, APP_THEME_COLOR } from '@/lib/siteConfig';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,7 +11,7 @@ interface LayoutProps {
   ogImage?: string;
 }
 
-export const Layout = ({ children, title = 'BookBridge India', description = 'Every Book Finds a Reader' }: LayoutProps) => {
+export const Layout = ({ children, title = APP_NAME, description = APP_TAGLINE }: LayoutProps) => {
   return (
     <>
       <Head>
@@ -20,7 +21,7 @@ export const Layout = ({ children, title = 'BookBridge India', description = 'Ev
         <meta property="og:description" content={description} />
         <meta property="og:type" content="website" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#2E7D32" />
+        <meta name="theme-color" content={APP_THEME_COLOR} />
       </Head>
       <div className="flex flex-col min-h-screen bg-white">
         <Header />

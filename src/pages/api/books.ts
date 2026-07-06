@@ -55,7 +55,7 @@ export default async function handler(
     }
   } else if (req.method === 'GET') {
     try {
-      const { category, search, limit = 20, offset = 0 } = req.query;
+      const { category, search, limit = 20, offset = 0, featured } = req.query;
 
       let query = supabase
         .from('books')
@@ -65,6 +65,10 @@ export default async function handler(
 
       if (category) {
         query = query.eq('category', category);
+      }
+
+      if (featured === 'true') {
+        query = query.eq('featured', true);
       }
 
       if (search) {
