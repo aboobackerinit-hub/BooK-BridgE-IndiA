@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "framework": "nextjs",
+  "functions": {
+    "api/*": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
