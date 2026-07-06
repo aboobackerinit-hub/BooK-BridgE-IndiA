@@ -3,8 +3,25 @@ import { User } from '@/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  !supabaseUrl.includes('your-') &&
+  !supabaseAnonKey.includes('your-')
+);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  }
+);
+
+export const getSupabaseClient = () => (isSupabaseConfigured ? supabase : null);
 
 export const mapSupabaseUser = (user: SupabaseUser | null | undefined): User | null => {
   if (!user) return null;
@@ -30,7 +47,12 @@ export const mapSupabaseUser = (user: SupabaseUser | null | undefined): User | n
 
 // Export utility functions for common operations
 export const signUp = async (email: string, password: string, fullName: string, role: User['role'] = 'buyer') => {
-  return await supabase.auth.signUp({
+  const client = getSupabaseClient();
+  if (!client) {
+    return { data: null, error: { message: 'Supabase is not configured yet.' } } as any;
+  }
+
+  return await client.auth.signUp({
     email,
     password,
     options: {
@@ -43,22 +65,42 @@ export const signUp = async (email: string, password: string, fullName: string, 
 };
 
 export const signIn = async (email: string, password: string) => {
-  return await supabase.auth.signInWithPassword({
+  const client = getSupabaseClient();
+  if (!client) {
+    return { data: null, error: { message: 'Supabase is not configured yet.' } } as any;
+  }
+
+  return await client.auth.signInWithPassword({
     email,
     password,
   });
 };
 
 export const signOut = async () => {
-  return await supabase.auth.signOut();
+  const client = getSupabaseClient();
+  if (!client) {
+    return { error: null } as any;
+  }
+
+  return await client.auth.signOut();
 };
 
 export const getUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+
+  const { data: { user } } = await client.auth.getUser();
   return mapSupabaseUser(user);
 };
 
 export const getCurrentSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+
+  const { data: { session } } = await client.auth.getSession();
   return session;
 };
