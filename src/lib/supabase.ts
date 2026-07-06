@@ -1,8 +1,8 @@
 import { createClient, type User as SupabaseUser } from '@supabase/supabase-js';
 import { User } from '@/types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fntdyfmgogbzpeesogpq.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_WEVl1334tdY-YubLinsHLA_sbjeQseb';
 const isSupabaseConfigured = Boolean(
   supabaseUrl &&
   supabaseAnonKey &&
@@ -11,8 +11,8 @@ const isSupabaseConfigured = Boolean(
 );
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-anon-key',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,
