@@ -2,10 +2,12 @@ from dotenv import load_dotenv
 from pathlib import Path
 load_dotenv(Path(__file__).parent / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from supabase import create_client, Client
+from postgrest.exceptions import APIError
 import os
+import base64
 import logging
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
@@ -17,15 +19,16 @@ import jwt
 from datetime import datetime, timezone, timedelta
 
 # ---------- Setup ----------
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-JWT_SECRET = os.environ['JWT_SECRET']
+JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALG = "HS256"
 JWT_EXPIRE_HOURS = 24 * 7  # 7 days
+BUCKET = "images"
 
-app = FastAPI(title="BookBridge India API")
+app = FastAPI(title="BookBridge India API (Supabase)")
 api = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO)
@@ -34,40 +37,36 @@ logger = logging.getLogger("bookbridge")
 
 # ---------- Helpers ----------
 def hash_password(pw: str) -> str:
-    return bcrypt.hashpw(pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(pw: str, hashed: str) -> bool:
     try:
-        return bcrypt.checkpw(pw.encode("utf-8"), hashed.encode("utf-8"))
+        return bcrypt.checkpw(pw.encode(), hashed.encode())
     except Exception:
         return False
 
 
 def create_token(user_id: str) -> str:
-    payload = {
-        "sub": user_id,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS),
-    }
+    payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
 
 def gen_bbid(name: str) -> str:
     prefix = "".join([c for c in (name or "").upper() if c.isalpha()])[:3] or "BBU"
-    suffix = "".join(random.choices(string.digits, k=6))
-    return f"BB-{prefix}{suffix}"
+    return f"BB-{prefix}{''.join(random.choices(string.digits, k=6))}"
 
 
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def clean(u: dict) -> dict:
+    if not u:
+        return u
+    u.pop("password_hash", None)
+    return u
 
 
-def clean(doc: dict) -> dict:
-    if not doc:
-        return doc
-    doc.pop("_id", None)
-    doc.pop("password_hash", None)
-    return doc
+def get_user_by_id(uid: str) -> Optional[dict]:
+    res = sb.table("users").select("*").eq("id", uid).limit(1).execute()
+    return res.data[0] if res.data else None
 
 
 async def get_current_user(request: Request) -> dict:
@@ -81,10 +80,10 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid token")
-    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+    user = get_user_by_id(payload["sub"])
     if not user:
         raise HTTPException(401, "User not found")
-    return user
+    return clean(user)
 
 
 def require_role(*roles):
@@ -95,12 +94,33 @@ def require_role(*roles):
     return dep
 
 
+def upload_data_url_to_storage(data_url: str, prefix: str = "img") -> str:
+    """If image is base64 dataURL, upload to Supabase Storage; else return as-is."""
+    if not data_url or not data_url.startswith("data:image/"):
+        return data_url
+    try:
+        header, b64 = data_url.split(",", 1)
+        mime = header.split(":")[1].split(";")[0]
+        ext = mime.split("/")[1] if "/" in mime else "jpg"
+        binary = base64.b64decode(b64)
+        path = f"{prefix}/{uuid.uuid4()}.{ext}"
+        sb.storage.from_(BUCKET).upload(
+            path=path,
+            file=binary,
+            file_options={"content-type": mime, "cache-control": "3600", "upsert": "false"},
+        )
+        return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
+    except Exception as e:
+        logger.warning(f"Storage upload failed: {e}; keeping data URL")
+        return data_url
+
+
 # ---------- Models ----------
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str
     name: str
-    role: str = "user"  # user | store_owner | publisher
+    role: str = "user"
 
 
 class LoginIn(BaseModel):
@@ -125,7 +145,7 @@ class BookIn(BaseModel):
     price: float
     stock: int = 1
     category: str = "General"
-    condition: str = "New"  # New | Used
+    condition: str = "New"
     image_url: Optional[str] = ""
     isbn: Optional[str] = ""
     edition: Optional[str] = ""
@@ -150,11 +170,11 @@ class CartItemIn(BaseModel):
 class OrderIn(BaseModel):
     address: str
     phone: str
-    payment_method: str = "cod"  # cod | upi
+    payment_method: str = "cod"
 
 
 class OrderStatusIn(BaseModel):
-    status: str  # New | Processing | Packed | Shipped | Delivered | Cancelled
+    status: str
 
 
 class MessageIn(BaseModel):
@@ -178,82 +198,42 @@ class EmailPrefsIn(BaseModel):
     email_marketing: Optional[bool] = None
 
 
-# ---------- Startup ----------
-@app.on_event("startup")
-async def startup():
-    # Indexes
-    await db.users.create_index("email", unique=True)
-    await db.users.create_index("bbid", unique=True)
-    await db.books.create_index("owner_id")
-    await db.posts.create_index([("created_at", -1)])
-    await db.messages.create_index([("thread_id", 1), ("created_at", 1)])
-    # Seed admin
+# ---------- Seed ----------
+def seed_all():
+    # Skip if any user exists
+    try:
+        existing = sb.table("users").select("id").limit(1).execute()
+        if existing.data:
+            logger.info("Data already seeded, skipping.")
+            return
+    except APIError as e:
+        logger.error(f"Schema not ready: {e}. Run /app/supabase_schema.sql in Supabase SQL Editor first.")
+        return
+
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@bookbridge.in")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
-    existing = await db.users.find_one({"email": admin_email})
-    if not existing:
-        uid = str(uuid.uuid4())
-        await db.users.insert_one({
-            "id": uid,
-            "email": admin_email,
-            "password_hash": hash_password(admin_password),
-            "name": "BookBridge Admin",
-            "role": "admin",
-            "bbid": "BB-ADMIN000",
-            "bio": "System Administrator",
-            "avatar_url": "",
-            "address": "",
-            "phone": "",
-            "privacy_public": True,
-            "notifications_enabled": True,
-            "approved": True,
-            "suspended": False,
-            "followers": [],
-            "following": [],
-            "created_at": now_iso(),
-        })
-        logger.info(f"Seeded admin: {admin_email}")
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email},
-                                  {"$set": {"password_hash": hash_password(admin_password)}})
-    # Seed demo data
-    await seed_demo_data()
 
-
-async def seed_demo_data():
-    if await db.books.count_documents({}) > 0:
-        return
-    # Seed some sample users
-    demo_users = [
-        {"email": "priya@demo.in", "name": "Priya Sharma", "role": "store_owner"},
-        {"email": "raj@demo.in", "name": "Raj Publications", "role": "publisher"},
-        {"email": "aditi@demo.in", "name": "Aditi Reader", "role": "user"},
+    users_data = [
+        {"email": admin_email, "name": "BookBridge Admin", "role": "admin", "password": admin_password, "bbid": "BB-ADMIN000"},
+        {"email": "priya@demo.in", "name": "Priya Sharma", "role": "store_owner", "password": "demo123"},
+        {"email": "raj@demo.in", "name": "Raj Publications", "role": "publisher", "password": "demo123"},
+        {"email": "aditi@demo.in", "name": "Aditi Reader", "role": "user", "password": "demo123"},
     ]
-    user_ids = {}
-    for u in demo_users:
-        uid = str(uuid.uuid4())
-        user_ids[u["role"]] = uid
-        await db.users.insert_one({
-            "id": uid,
+    inserted_users = {}
+    for u in users_data:
+        row = {
             "email": u["email"],
-            "password_hash": hash_password("demo123"),
+            "password_hash": hash_password(u["password"]),
             "name": u["name"],
             "role": u["role"],
-            "bbid": gen_bbid(u["name"]),
-            "bio": f"Demo {u['role']} account",
-            "avatar_url": "",
-            "address": "Mumbai, India",
-            "phone": "+91 90000 00000",
-            "privacy_public": True,
-            "notifications_enabled": True,
-            "approved": True,
-            "suspended": False,
-            "followers": [],
-            "following": [],
-            "created_at": now_iso(),
-        })
+            "bbid": u.get("bbid") or gen_bbid(u["name"]),
+            "bio": f"Demo {u['role']} account" if u["role"] != "admin" else "System Administrator",
+            "address": "Mumbai, India" if u["role"] != "admin" else "",
+            "phone": "+91 90000 00000" if u["role"] != "admin" else "",
+        }
+        res = sb.table("users").insert(row).execute()
+        inserted_users[u["role"]] = res.data[0]["id"]
 
-    # Sample books
     samples = [
         {"title": "The White Tiger", "author": "Aravind Adiga", "price": 299, "category": "Fiction",
          "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400",
@@ -266,7 +246,7 @@ async def seed_demo_data():
          "description": "A haunting story of forbidden love in Kerala.", "role": "publisher"},
         {"title": "Wings of Fire", "author": "A.P.J. Abdul Kalam", "price": 250, "category": "Biography",
          "image_url": "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400",
-         "description": "Autobiography of India's missile man and former President.", "role": "store_owner"},
+         "description": "Autobiography of India's missile man.", "role": "store_owner"},
         {"title": "Train to Pakistan", "author": "Khushwant Singh", "price": 199, "category": "Fiction",
          "image_url": "https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400",
          "description": "A moving story set during the partition of India.", "role": "store_owner"},
@@ -280,418 +260,381 @@ async def seed_demo_data():
          "image_url": "https://images.unsplash.com/photo-1531072901881-d644216d4bf9?w=400",
          "description": "Mahabharata retold from Draupadi's perspective.", "role": "publisher"},
     ]
-    for b in samples:
-        owner = user_ids[b["role"]]
-        await db.books.insert_one({
-            "id": str(uuid.uuid4()),
-            "title": b["title"],
-            "author": b["author"],
-            "description": b["description"],
-            "price": b["price"],
-            "stock": 20,
-            "category": b["category"],
-            "condition": "New",
-            "image_url": b["image_url"],
-            "isbn": "",
-            "edition": "1st",
-            "language": "English",
-            "owner_id": owner,
-            "owner_role": b["role"],
-            "approved": True,
-            "featured": random.choice([True, False]),
-            "created_at": now_iso(),
-        })
+    books = [{
+        "title": b["title"], "author": b["author"], "description": b["description"],
+        "price": b["price"], "stock": 20, "category": b["category"], "condition": "New",
+        "image_url": b["image_url"], "edition": "1st", "language": "English",
+        "owner_id": inserted_users[b["role"]], "owner_role": b["role"],
+        "featured": random.choice([True, False]),
+    } for b in samples]
+    sb.table("books").insert(books).execute()
 
-    # Sample posts
-    aditi = user_ids["user"]
+    aditi = inserted_users["user"]
     posts_data = [
-        {"text": "Just finished 'The White Tiger' — an unflinching, brilliant read on modern India. Highly recommended!",
+        {"user_id": aditi, "text": "Just finished 'The White Tiger' — an unflinching, brilliant read.",
          "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600"},
-        {"text": "Started 'Midnight's Children' today. Rushdie's prose is magic. ✨", "image_url": ""},
-        {"text": "Bought a stack of used books from BookBridge — the smell of old paper is unmatched.",
+        {"user_id": aditi, "text": "Started 'Midnight's Children' today. Rushdie's prose is magic.", "image_url": ""},
+        {"user_id": aditi, "text": "Bought a stack of used books from BookBridge — the smell of old paper is unmatched.",
          "image_url": "https://images.unsplash.com/photo-1491841651911-c44c30c34548?w=600"},
     ]
-    for p in posts_data:
-        await db.posts.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": aditi,
-            "text": p["text"],
-            "image_url": p["image_url"],
-            "book_id": None,
-            "likes": [],
-            "comments": [],
-            "created_at": now_iso(),
-        })
+    sb.table("posts").insert(posts_data).execute()
+    logger.info("Seeded users, books, posts.")
+
+
+@app.on_event("startup")
+def startup():
+    try:
+        seed_all()
+    except Exception as e:
+        logger.error(f"Seed error (schema may not be created yet): {e}")
 
 
 # ---------- Auth ----------
 @api.post("/auth/register")
-async def register(body: RegisterIn):
+def register(body: RegisterIn):
     if body.role not in ("user", "store_owner", "publisher"):
         raise HTTPException(400, "Invalid role")
     email = body.email.lower()
-    if await db.users.find_one({"email": email}):
+    existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
+    if existing.data:
         raise HTTPException(400, "Email already registered")
-    uid = str(uuid.uuid4())
-    user = {
-        "id": uid,
+    row = {
         "email": email,
         "password_hash": hash_password(body.password),
         "name": body.name,
         "role": body.role,
         "bbid": gen_bbid(body.name),
-        "bio": "",
-        "avatar_url": "",
-        "address": "",
-        "phone": "",
-        "privacy_public": True,
-        "notifications_enabled": True,
-        "approved": True,
-        "suspended": False,
-        "followers": [],
-        "following": [],
-        "created_at": now_iso(),
     }
-    await db.users.insert_one(user)
-    token = create_token(uid)
-    return {"token": token, "user": clean(dict(user))}
+    res = sb.table("users").insert(row).execute()
+    user = res.data[0]
+    return {"token": create_token(user["id"]), "user": clean(user)}
 
 
 @api.post("/auth/login")
-async def login(body: LoginIn):
+def login(body: LoginIn):
     email = body.email.lower()
-    user = await db.users.find_one({"email": email})
-    if not user or not verify_password(body.password, user["password_hash"]):
+    res = sb.table("users").select("*").eq("email", email).limit(1).execute()
+    if not res.data:
+        raise HTTPException(401, "Invalid email or password")
+    user = res.data[0]
+    if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
     if user.get("suspended"):
         raise HTTPException(403, "Account suspended. Contact admin.")
-    token = create_token(user["id"])
-    return {"token": token, "user": clean(dict(user))}
+    return {"token": create_token(user["id"]), "user": clean(user)}
 
 
 @api.get("/auth/me")
-async def me(user: dict = Depends(get_current_user)):
+def me(user: dict = Depends(get_current_user)):
     return user
 
 
 @api.post("/auth/logout")
-async def logout(user: dict = Depends(get_current_user)):
+def logout(user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
 @api.post("/auth/change-password")
-async def change_password(body: ChangePasswordIn, user: dict = Depends(get_current_user)):
+def change_password(body: ChangePasswordIn, user: dict = Depends(get_current_user)):
     if len(body.new_password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
-    doc = await db.users.find_one({"id": user["id"]})
-    if not doc or not verify_password(body.current_password, doc["password_hash"]):
+    full = get_user_by_id(user["id"])
+    if not full or not verify_password(body.current_password, full["password_hash"]):
         raise HTTPException(400, "Current password is incorrect")
-    await db.users.update_one({"id": user["id"]},
-                              {"$set": {"password_hash": hash_password(body.new_password)}})
+    sb.table("users").update({"password_hash": hash_password(body.new_password)}).eq("id", user["id"]).execute()
     return {"ok": True}
 
 
 @api.post("/auth/delete-account")
-async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current_user)):
+def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current_user)):
     if user["role"] == "admin":
         raise HTTPException(400, "Admin account cannot be deleted")
-    doc = await db.users.find_one({"id": user["id"]})
-    if not doc or not verify_password(body.password, doc["password_hash"]):
+    full = get_user_by_id(user["id"])
+    if not full or not verify_password(body.password, full["password_hash"]):
         raise HTTPException(400, "Password is incorrect")
-    uid = user["id"]
-    await db.users.delete_one({"id": uid})
-    await db.books.delete_many({"owner_id": uid})
-    await db.posts.delete_many({"user_id": uid})
-    await db.cart.delete_many({"user_id": uid})
-    await db.messages.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
+    sb.table("users").delete().eq("id", user["id"]).execute()
     return {"ok": True}
 
 
-# ---------- Users / Profile ----------
+# ---------- Users ----------
 @api.get("/users/{user_id}")
-async def get_user(user_id: str):
-    u = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+def get_user(user_id: str):
+    u = get_user_by_id(user_id)
     if not u:
         raise HTTPException(404, "User not found")
-    return u
+    return clean(u)
 
 
 @api.get("/users")
-async def list_users(q: Optional[str] = None, role: Optional[str] = None):
-    query = {}
+def list_users(q: Optional[str] = None, role: Optional[str] = None):
+    query = sb.table("users").select("*")
     if role:
-        query["role"] = role
+        query = query.eq("role", role)
     if q:
-        query["$or"] = [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"bbid": {"$regex": q, "$options": "i"}},
-        ]
-    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).limit(50).to_list(50)
-    return users
+        query = query.or_(f"name.ilike.%{q}%,bbid.ilike.%{q}%")
+    res = query.limit(50).execute()
+    return [clean(u) for u in res.data]
 
 
 @api.put("/users/me")
-async def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
+def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     update = {k: v for k, v in body.model_dump().items() if v is not None}
+    if update.get("avatar_url"):
+        update["avatar_url"] = upload_data_url_to_storage(update["avatar_url"], prefix="avatars")
     if update:
-        await db.users.update_one({"id": user["id"]}, {"$set": update})
-    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
-    return u
+        sb.table("users").update(update).eq("id", user["id"]).execute()
+    return clean(get_user_by_id(user["id"]))
 
 
 @api.post("/users/{user_id}/follow")
-async def toggle_follow(user_id: str, user: dict = Depends(get_current_user)):
+def toggle_follow(user_id: str, user: dict = Depends(get_current_user)):
     if user_id == user["id"]:
         raise HTTPException(400, "Cannot follow yourself")
-    target = await db.users.find_one({"id": user_id})
+    target = get_user_by_id(user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    following = user.get("following", []) or []
+    me_full = get_user_by_id(user["id"])
+    following = me_full.get("following") or []
     if user_id in following:
-        await db.users.update_one({"id": user["id"]}, {"$pull": {"following": user_id}})
-        await db.users.update_one({"id": user_id}, {"$pull": {"followers": user["id"]}})
+        sb.table("users").update({"following": [x for x in following if x != user_id]}).eq("id", user["id"]).execute()
+        tf = [x for x in (target.get("followers") or []) if x != user["id"]]
+        sb.table("users").update({"followers": tf}).eq("id", user_id).execute()
         return {"following": False}
     else:
-        await db.users.update_one({"id": user["id"]}, {"$addToSet": {"following": user_id}})
-        await db.users.update_one({"id": user_id}, {"$addToSet": {"followers": user["id"]}})
+        sb.table("users").update({"following": following + [user_id]}).eq("id", user["id"]).execute()
+        tf = list(set((target.get("followers") or []) + [user["id"]]))
+        sb.table("users").update({"followers": tf}).eq("id", user_id).execute()
         return {"following": True}
 
 
 @api.post("/users/{user_id}/block")
-async def toggle_block(user_id: str, user: dict = Depends(get_current_user)):
+def toggle_block(user_id: str, user: dict = Depends(get_current_user)):
     if user_id == user["id"]:
         raise HTTPException(400, "Cannot block yourself")
-    if not await db.users.find_one({"id": user_id}):
+    if not get_user_by_id(user_id):
         raise HTTPException(404, "User not found")
-    blocked = user.get("blocked", []) or []
+    me_full = get_user_by_id(user["id"])
+    blocked = me_full.get("blocked") or []
     if user_id in blocked:
-        await db.users.update_one({"id": user["id"]}, {"$pull": {"blocked": user_id}})
+        sb.table("users").update({"blocked": [x for x in blocked if x != user_id]}).eq("id", user["id"]).execute()
         return {"blocked": False}
-    await db.users.update_one({"id": user["id"]}, {"$addToSet": {"blocked": user_id}})
+    sb.table("users").update({"blocked": list(set(blocked + [user_id]))}).eq("id", user["id"]).execute()
     return {"blocked": True}
 
 
 @api.get("/users/me/blocked")
-async def list_blocked(user: dict = Depends(get_current_user)):
-    ids = user.get("blocked", []) or []
+def list_blocked(user: dict = Depends(get_current_user)):
+    ids = user.get("blocked") or []
     if not ids:
         return []
-    users = await db.users.find({"id": {"$in": ids}},
-                                {"_id": 0, "password_hash": 0}).to_list(200)
-    return users
+    res = sb.table("users").select("*").in_("id", ids).execute()
+    return [clean(u) for u in res.data]
 
 
 @api.put("/users/me/email-prefs")
-async def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
-    update = {}
+def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
+    full = get_user_by_id(user["id"])
+    prefs = full.get("email_prefs") or {}
     for k, v in body.model_dump().items():
         if v is not None:
-            update[f"email_prefs.{k}"] = v
-    if update:
-        await db.users.update_one({"id": user["id"]}, {"$set": update})
-    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
-    return u
+            prefs[k] = v
+    sb.table("users").update({"email_prefs": prefs}).eq("id", user["id"]).execute()
+    return clean(get_user_by_id(user["id"]))
 
 
 # ---------- Books ----------
 @api.get("/books")
-async def list_books(q: Optional[str] = None, category: Optional[str] = None,
-                     owner_id: Optional[str] = None, featured: Optional[bool] = None,
-                     limit: int = 60):
-    query = {"approved": True}
+def list_books(q: Optional[str] = None, category: Optional[str] = None,
+               owner_id: Optional[str] = None, featured: Optional[bool] = None,
+               limit: int = 60):
+    query = sb.table("books").select("*")
+    if not owner_id:
+        query = query.eq("approved", True)
     if category and category != "All":
-        query["category"] = category
+        query = query.eq("category", category)
     if owner_id:
-        query["owner_id"] = owner_id
-        query.pop("approved", None)
+        query = query.eq("owner_id", owner_id)
     if featured is not None:
-        query["featured"] = featured
+        query = query.eq("featured", featured)
     if q:
-        query["$or"] = [
-            {"title": {"$regex": q, "$options": "i"}},
-            {"author": {"$regex": q, "$options": "i"}},
-        ]
-    books = await db.books.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
-    return books
+        query = query.or_(f"title.ilike.%{q}%,author.ilike.%{q}%")
+    res = query.order("created_at", desc=True).limit(limit).execute()
+    return res.data
 
 
 @api.get("/books/{book_id}")
-async def get_book(book_id: str):
-    b = await db.books.find_one({"id": book_id}, {"_id": 0})
-    if not b:
+def get_book(book_id: str):
+    res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Book not found")
-    owner = await db.users.find_one({"id": b["owner_id"]}, {"_id": 0, "password_hash": 0})
-    b["owner"] = owner
+    b = res.data[0]
+    owner = get_user_by_id(b["owner_id"])
+    b["owner"] = clean(owner) if owner else None
     return b
 
 
 @api.post("/books")
-async def create_book(body: BookIn, user: dict = Depends(get_current_user)):
-    if user["role"] not in ("user", "store_owner", "publisher", "admin"):
-        raise HTTPException(403, "Not allowed")
-    doc = body.model_dump()
-    doc.update({
-        "id": str(uuid.uuid4()),
-        "owner_id": user["id"],
-        "owner_role": user["role"],
-        "approved": True,  # auto-approve for demo
-        "featured": False,
-        "created_at": now_iso(),
-    })
-    await db.books.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+def create_book(body: BookIn, user: dict = Depends(get_current_user)):
+    row = body.model_dump()
+    row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
+    row["owner_id"] = user["id"]
+    row["owner_role"] = user["role"]
+    row["approved"] = True
+    res = sb.table("books").insert(row).execute()
+    return res.data[0]
 
 
 @api.put("/books/{book_id}")
-async def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_user)):
-    b = await db.books.find_one({"id": book_id})
-    if not b:
+def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_user)):
+    res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Book not found")
+    b = res.data[0]
     if b["owner_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    await db.books.update_one({"id": book_id}, {"$set": body.model_dump()})
-    b2 = await db.books.find_one({"id": book_id}, {"_id": 0})
-    return b2
+    row = body.model_dump()
+    row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
+    sb.table("books").update(row).eq("id", book_id).execute()
+    return sb.table("books").select("*").eq("id", book_id).limit(1).execute().data[0]
 
 
 @api.delete("/books/{book_id}")
-async def delete_book(book_id: str, user: dict = Depends(get_current_user)):
-    b = await db.books.find_one({"id": book_id})
-    if not b:
+def delete_book(book_id: str, user: dict = Depends(get_current_user)):
+    res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Book not found")
+    b = res.data[0]
     if b["owner_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    await db.books.delete_one({"id": book_id})
+    sb.table("books").delete().eq("id", book_id).execute()
     return {"ok": True}
 
 
 @api.get("/categories")
-async def categories():
+def categories():
     return ["All", "Fiction", "Non-Fiction", "Biography", "History", "Science",
             "Business", "Children", "Poetry", "Self-Help", "Textbook", "Regional"]
 
 
-# ---------- Posts / Reviews ----------
+# ---------- Posts ----------
 @api.get("/posts")
-async def list_posts(limit: int = 50):
-    posts = await db.posts.find({}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
-    # Attach author
+def list_posts(limit: int = 50):
+    res = sb.table("posts").select("*").order("created_at", desc=True).limit(limit).execute()
+    posts = res.data
     uids = list({p["user_id"] for p in posts})
-    users = {u["id"]: u async for u in db.users.find({"id": {"$in": uids}},
-                                                     {"_id": 0, "password_hash": 0})}
+    users = {}
+    if uids:
+        ur = sb.table("users").select("*").in_("id", uids).execute()
+        users = {u["id"]: clean(u) for u in ur.data}
     for p in posts:
         p["author"] = users.get(p["user_id"])
     return posts
 
 
 @api.post("/posts")
-async def create_post(body: PostIn, user: dict = Depends(get_current_user)):
-    doc = {
-        "id": str(uuid.uuid4()),
+def create_post(body: PostIn, user: dict = Depends(get_current_user)):
+    row = {
         "user_id": user["id"],
         "text": body.text,
-        "image_url": body.image_url or "",
+        "image_url": upload_data_url_to_storage(body.image_url or "", prefix="posts"),
         "book_id": body.book_id,
         "likes": [],
         "comments": [],
-        "created_at": now_iso(),
     }
-    await db.posts.insert_one(doc)
-    doc.pop("_id", None)
-    doc["author"] = user
-    return doc
+    res = sb.table("posts").insert(row).execute()
+    p = res.data[0]
+    p["author"] = user
+    return p
 
 
 @api.delete("/posts/{post_id}")
-async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
-    p = await db.posts.find_one({"id": post_id})
-    if not p:
+def delete_post(post_id: str, user: dict = Depends(get_current_user)):
+    res = sb.table("posts").select("*").eq("id", post_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Not found")
+    p = res.data[0]
     if p["user_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    await db.posts.delete_one({"id": post_id})
+    sb.table("posts").delete().eq("id", post_id).execute()
     return {"ok": True}
 
 
 @api.post("/posts/{post_id}/like")
-async def like_post(post_id: str, user: dict = Depends(get_current_user)):
-    p = await db.posts.find_one({"id": post_id})
-    if not p:
+def like_post(post_id: str, user: dict = Depends(get_current_user)):
+    res = sb.table("posts").select("*").eq("id", post_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Not found")
-    likes = p.get("likes", [])
+    p = res.data[0]
+    likes = p.get("likes") or []
     if user["id"] in likes:
-        await db.posts.update_one({"id": post_id}, {"$pull": {"likes": user["id"]}})
+        new_likes = [x for x in likes if x != user["id"]]
+        sb.table("posts").update({"likes": new_likes}).eq("id", post_id).execute()
         return {"liked": False}
-    else:
-        await db.posts.update_one({"id": post_id}, {"$addToSet": {"likes": user["id"]}})
-        return {"liked": True}
+    sb.table("posts").update({"likes": list(set(likes + [user["id"]]))}).eq("id", post_id).execute()
+    return {"liked": True}
 
 
 @api.post("/posts/{post_id}/comment")
-async def comment_post(post_id: str, body: CommentIn, user: dict = Depends(get_current_user)):
-    p = await db.posts.find_one({"id": post_id})
-    if not p:
+def comment_post(post_id: str, body: CommentIn, user: dict = Depends(get_current_user)):
+    res = sb.table("posts").select("*").eq("id", post_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Not found")
+    p = res.data[0]
+    comments = p.get("comments") or []
     comment = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "user_name": user["name"],
         "text": body.text,
-        "created_at": now_iso(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.posts.update_one({"id": post_id}, {"$push": {"comments": comment}})
+    comments.append(comment)
+    sb.table("posts").update({"comments": comments}).eq("id", post_id).execute()
     return comment
 
 
 # ---------- Cart ----------
 @api.get("/cart")
-async def get_cart(user: dict = Depends(get_current_user)):
-    items = await db.cart.find({"user_id": user["id"]}, {"_id": 0}).to_list(200)
+def get_cart(user: dict = Depends(get_current_user)):
+    items = sb.table("cart").select("*").eq("user_id", user["id"]).execute().data
     book_ids = [i["book_id"] for i in items]
-    books = {b["id"]: b async for b in db.books.find({"id": {"$in": book_ids}}, {"_id": 0})}
+    books_map = {}
+    if book_ids:
+        br = sb.table("books").select("*").in_("id", book_ids).execute()
+        books_map = {b["id"]: b for b in br.data}
     for i in items:
-        i["book"] = books.get(i["book_id"])
+        i["book"] = books_map.get(i["book_id"])
     total = sum((i["book"]["price"] * i["quantity"]) for i in items if i.get("book"))
     return {"items": items, "total": total}
 
 
 @api.post("/cart")
-async def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
-    b = await db.books.find_one({"id": body.book_id})
-    if not b:
+def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
+    if not sb.table("books").select("id").eq("id", body.book_id).limit(1).execute().data:
         raise HTTPException(404, "Book not found")
-    existing = await db.cart.find_one({"user_id": user["id"], "book_id": body.book_id})
-    if existing:
-        await db.cart.update_one(
-            {"user_id": user["id"], "book_id": body.book_id},
-            {"$inc": {"quantity": body.quantity}},
-        )
+    existing = sb.table("cart").select("*").eq("user_id", user["id"]).eq("book_id", body.book_id).limit(1).execute()
+    if existing.data:
+        new_qty = existing.data[0]["quantity"] + body.quantity
+        sb.table("cart").update({"quantity": new_qty}).eq("id", existing.data[0]["id"]).execute()
     else:
-        await db.cart.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": user["id"],
-            "book_id": body.book_id,
-            "quantity": body.quantity,
-            "created_at": now_iso(),
-        })
+        sb.table("cart").insert({"user_id": user["id"], "book_id": body.book_id, "quantity": body.quantity}).execute()
     return {"ok": True}
 
 
 @api.delete("/cart/{book_id}")
-async def remove_cart(book_id: str, user: dict = Depends(get_current_user)):
-    await db.cart.delete_one({"user_id": user["id"], "book_id": book_id})
+def remove_cart(book_id: str, user: dict = Depends(get_current_user)):
+    sb.table("cart").delete().eq("user_id", user["id"]).eq("book_id", book_id).execute()
     return {"ok": True}
 
 
 # ---------- Orders ----------
 @api.post("/orders")
-async def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
-    cart_items = await db.cart.find({"user_id": user["id"]}, {"_id": 0}).to_list(200)
+def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
+    cart_items = sb.table("cart").select("*").eq("user_id", user["id"]).execute().data
     if not cart_items:
         raise HTTPException(400, "Cart is empty")
     book_ids = [i["book_id"] for i in cart_items]
-    books = {b["id"]: b async for b in db.books.find({"id": {"$in": book_ids}}, {"_id": 0})}
+    books = {b["id"]: b for b in sb.table("books").select("*").in_("id", book_ids).execute().data}
     order_items = []
     total = 0.0
     for c in cart_items:
@@ -699,64 +642,51 @@ async def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
         if not b:
             continue
         order_items.append({
-            "book_id": b["id"],
-            "title": b["title"],
-            "author": b["author"],
-            "image_url": b.get("image_url", ""),
-            "price": b["price"],
-            "quantity": c["quantity"],
-            "seller_id": b["owner_id"],
+            "book_id": b["id"], "title": b["title"], "author": b["author"],
+            "image_url": b.get("image_url") or "", "price": float(b["price"]),
+            "quantity": c["quantity"], "seller_id": b["owner_id"],
         })
-        total += b["price"] * c["quantity"]
-    order = {
-        "id": str(uuid.uuid4()),
-        "order_no": "BB" + "".join(random.choices(string.digits, k=8)),
-        "user_id": user["id"],
-        "user_name": user["name"],
-        "items": order_items,
-        "address": body.address,
-        "phone": body.phone,
-        "payment_method": body.payment_method,
-        "total": total,
-        "status": "New",
-        "created_at": now_iso(),
+        total += float(b["price"]) * c["quantity"]
+    order_no = "BB" + "".join(random.choices(string.digits, k=8))
+    order_row = {
+        "order_no": order_no, "user_id": user["id"], "user_name": user["name"],
+        "items": order_items, "address": body.address, "phone": body.phone,
+        "payment_method": body.payment_method, "total": total, "status": "New",
     }
-    await db.orders.insert_one(order)
-    await db.cart.delete_many({"user_id": user["id"]})
-    order.pop("_id", None)
-    return order
+    res = sb.table("orders").insert(order_row).execute()
+    sb.table("cart").delete().eq("user_id", user["id"]).execute()
+    return res.data[0]
 
 
 @api.get("/orders")
-async def my_orders(user: dict = Depends(get_current_user)):
-    orders = await db.orders.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    return orders
+def my_orders(user: dict = Depends(get_current_user)):
+    res = sb.table("orders").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
+    return res.data
 
 
 @api.get("/orders/seller")
-async def seller_orders(user: dict = Depends(get_current_user)):
-    orders = await db.orders.find(
-        {"items.seller_id": user["id"]}, {"_id": 0}
-    ).sort("created_at", -1).to_list(200)
-    return orders
+def seller_orders(user: dict = Depends(get_current_user)):
+    # Filter client-side because items is JSONB
+    res = sb.table("orders").select("*").order("created_at", desc=True).execute()
+    return [o for o in res.data if any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))]
 
 
 @api.get("/orders/all")
-async def all_orders(user: dict = Depends(require_role("admin"))):
-    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return orders
+def all_orders(user: dict = Depends(require_role("admin"))):
+    res = sb.table("orders").select("*").order("created_at", desc=True).execute()
+    return res.data
 
 
 @api.put("/orders/{order_id}/status")
-async def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_current_user)):
-    o = await db.orders.find_one({"id": order_id})
-    if not o:
+def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_current_user)):
+    res = sb.table("orders").select("*").eq("id", order_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Order not found")
-    # Seller or admin can update
-    is_seller = any(it["seller_id"] == user["id"] for it in o.get("items", []))
+    o = res.data[0]
+    is_seller = any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))
     if not is_seller and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    await db.orders.update_one({"id": order_id}, {"$set": {"status": body.status}})
+    sb.table("orders").update({"status": body.status}).eq("id", order_id).execute()
     return {"ok": True, "status": body.status}
 
 
@@ -766,178 +696,148 @@ def thread_id_of(a: str, b: str) -> str:
 
 
 @api.get("/chat/threads")
-async def chat_threads(user: dict = Depends(get_current_user)):
-    pipeline = [
-        {"$match": {"$or": [{"from_user_id": user["id"]}, {"to_user_id": user["id"]}]}},
-        {"$sort": {"created_at": -1}},
-        {"$group": {
-            "_id": "$thread_id",
-            "last_message": {"$first": "$text"},
-            "last_time": {"$first": "$created_at"},
-            "from_user_id": {"$first": "$from_user_id"},
-            "to_user_id": {"$first": "$to_user_id"},
-        }},
-        {"$sort": {"last_time": -1}},
-    ]
-    threads = await db.messages.aggregate(pipeline).to_list(100)
+def chat_threads(user: dict = Depends(get_current_user)):
+    # Fetch all messages involving me, group by thread client-side
+    res = sb.table("messages").select("*").or_(
+        f"from_user_id.eq.{user['id']},to_user_id.eq.{user['id']}"
+    ).order("created_at", desc=True).execute()
+    threads = {}
+    for m in res.data:
+        tid = m["thread_id"]
+        if tid not in threads:
+            threads[tid] = m
     result = []
-    for t in threads:
-        other_id = t["to_user_id"] if t["from_user_id"] == user["id"] else t["from_user_id"]
-        other = await db.users.find_one({"id": other_id}, {"_id": 0, "password_hash": 0})
+    for tid, m in threads.items():
+        other_id = m["to_user_id"] if m["from_user_id"] == user["id"] else m["from_user_id"]
+        other = get_user_by_id(other_id)
         if other:
             result.append({
-                "thread_id": t["_id"],
-                "other_user": other,
-                "last_message": t["last_message"],
-                "last_time": t["last_time"],
+                "thread_id": tid,
+                "other_user": clean(other),
+                "last_message": m["text"],
+                "last_time": m["created_at"],
             })
+    result.sort(key=lambda x: x["last_time"], reverse=True)
     return result
 
 
 @api.get("/chat/{other_user_id}")
-async def chat_messages(other_user_id: str, user: dict = Depends(get_current_user)):
+def chat_messages(other_user_id: str, user: dict = Depends(get_current_user)):
     tid = thread_id_of(user["id"], other_user_id)
-    msgs = await db.messages.find({"thread_id": tid}, {"_id": 0}).sort("created_at", 1).to_list(500)
-    return msgs
+    res = sb.table("messages").select("*").eq("thread_id", tid).order("created_at").execute()
+    return res.data
 
 
 @api.post("/chat")
-async def send_message(body: MessageIn, user: dict = Depends(get_current_user)):
-    if not await db.users.find_one({"id": body.to_user_id}):
+def send_message(body: MessageIn, user: dict = Depends(get_current_user)):
+    if not get_user_by_id(body.to_user_id):
         raise HTTPException(404, "Recipient not found")
     tid = thread_id_of(user["id"], body.to_user_id)
-    doc = {
-        "id": str(uuid.uuid4()),
-        "thread_id": tid,
-        "from_user_id": user["id"],
-        "from_user_name": user["name"],
-        "to_user_id": body.to_user_id,
-        "text": body.text,
-        "read": False,
-        "created_at": now_iso(),
+    row = {
+        "thread_id": tid, "from_user_id": user["id"], "from_user_name": user["name"],
+        "to_user_id": body.to_user_id, "text": body.text, "read": False,
     }
-    await db.messages.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    res = sb.table("messages").insert(row).execute()
+    return res.data[0]
 
 
 @api.post("/chat/{other_user_id}/read")
-async def mark_thread_read(other_user_id: str, user: dict = Depends(get_current_user)):
+def mark_thread_read(other_user_id: str, user: dict = Depends(get_current_user)):
     tid = thread_id_of(user["id"], other_user_id)
-    await db.messages.update_many(
-        {"thread_id": tid, "to_user_id": user["id"], "read": False},
-        {"$set": {"read": True}},
-    )
+    sb.table("messages").update({"read": True}).eq("thread_id", tid).eq("to_user_id", user["id"]).eq("read", False).execute()
     return {"ok": True}
 
 
 @api.get("/notifications")
-async def get_notifications(user: dict = Depends(get_current_user)):
+def get_notifications(user: dict = Depends(get_current_user)):
     if not user.get("notifications_enabled", True):
         return {"unread_messages": 0, "recent": [], "pending_orders": 0}
-    unread = await db.messages.count_documents({"to_user_id": user["id"], "read": {"$ne": True}})
-    recent = await db.messages.find(
-        {"to_user_id": user["id"], "read": {"$ne": True}},
-        {"_id": 0}
-    ).sort("created_at", -1).limit(5).to_list(5)
-    pending_orders = 0
+    unread_res = sb.table("messages").select("*").eq("to_user_id", user["id"]).eq("read", False).order("created_at", desc=True).limit(5).execute()
+    unread = len(unread_res.data)
+    # For a fuller count, do a count query
+    count_res = sb.table("messages").select("id", count="exact").eq("to_user_id", user["id"]).eq("read", False).execute()
+    unread_total = count_res.count or unread
+    pending = 0
     if user.get("role") in ("store_owner", "publisher", "admin"):
-        pending_orders = await db.orders.count_documents({
-            "items.seller_id": user["id"],
-            "status": {"$in": ["New", "Processing"]},
-        })
-    return {"unread_messages": unread, "recent": recent, "pending_orders": pending_orders}
+        orders_res = sb.table("orders").select("*").in_("status", ["New", "Processing"]).execute()
+        pending = sum(1 for o in orders_res.data if any(it.get("seller_id") == user["id"] for it in (o.get("items") or [])))
+    return {"unread_messages": unread_total, "recent": unread_res.data, "pending_orders": pending}
 
 
 # ---------- Admin ----------
 @api.get("/admin/stats")
-async def admin_stats(user: dict = Depends(require_role("admin"))):
-    total_users = await db.users.count_documents({})
-    total_books = await db.books.count_documents({})
-    total_orders = await db.orders.count_documents({})
-    orders_agg = await db.orders.aggregate([
-        {"$group": {"_id": None, "total": {"$sum": "$total"}}}
-    ]).to_list(1)
-    revenue = orders_agg[0]["total"] if orders_agg else 0
-    active_stores = await db.users.count_documents({"role": "store_owner"})
-    publishers = await db.users.count_documents({"role": "publisher"})
+def admin_stats(user: dict = Depends(require_role("admin"))):
+    total_users = sb.table("users").select("id", count="exact").execute().count or 0
+    total_books = sb.table("books").select("id", count="exact").execute().count or 0
+    total_orders = sb.table("orders").select("id", count="exact").execute().count or 0
+    orders = sb.table("orders").select("total").execute().data
+    revenue = sum(float(o.get("total") or 0) for o in orders)
+    stores = sb.table("users").select("id", count="exact").eq("role", "store_owner").execute().count or 0
+    publishers = sb.table("users").select("id", count="exact").eq("role", "publisher").execute().count or 0
     return {
-        "total_users": total_users,
-        "total_books": total_books,
-        "total_orders": total_orders,
-        "revenue": revenue,
-        "stores": active_stores,
-        "publishers": publishers,
+        "total_users": total_users, "total_books": total_books,
+        "total_orders": total_orders, "revenue": revenue,
+        "stores": stores, "publishers": publishers,
     }
 
 
 @api.get("/admin/users")
-async def admin_users(user: dict = Depends(require_role("admin"))):
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(500)
-    return users
+def admin_users(user: dict = Depends(require_role("admin"))):
+    res = sb.table("users").select("*").execute()
+    return [clean(u) for u in res.data]
 
 
 @api.put("/admin/users/{user_id}/suspend")
-async def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
-    u = await db.users.find_one({"id": user_id})
+def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
+    u = get_user_by_id(user_id)
     if not u:
         raise HTTPException(404, "Not found")
-    await db.users.update_one({"id": user_id}, {"$set": {"suspended": not u.get("suspended", False)}})
+    sb.table("users").update({"suspended": not u.get("suspended", False)}).eq("id", user_id).execute()
     return {"ok": True}
 
 
 @api.delete("/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin"))):
-    await db.users.delete_one({"id": user_id})
+def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin"))):
+    sb.table("users").delete().eq("id", user_id).execute()
     return {"ok": True}
 
 
 @api.put("/admin/books/{book_id}/feature")
-async def admin_feature(book_id: str, user: dict = Depends(require_role("admin"))):
-    b = await db.books.find_one({"id": book_id})
-    if not b:
+def admin_feature(book_id: str, user: dict = Depends(require_role("admin"))):
+    res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
+    if not res.data:
         raise HTTPException(404, "Not found")
-    await db.books.update_one({"id": book_id}, {"$set": {"featured": not b.get("featured", False)}})
+    b = res.data[0]
+    sb.table("books").update({"featured": not b.get("featured", False)}).eq("id", book_id).execute()
     return {"ok": True}
 
 
 @api.get("/admin/books")
-async def admin_books(user: dict = Depends(require_role("admin"))):
-    books = await db.books.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return books
+def admin_books(user: dict = Depends(require_role("admin"))):
+    return sb.table("books").select("*").order("created_at", desc=True).execute().data
 
 
-# ---------- Dashboard (seller/publisher) ----------
+# ---------- Dashboard ----------
 @api.get("/dashboard/overview")
-async def dashboard_overview(user: dict = Depends(get_current_user)):
-    my_books = await db.books.count_documents({"owner_id": user["id"]})
-    orders_cur = db.orders.find({"items.seller_id": user["id"]}, {"_id": 0})
-    orders = await orders_cur.to_list(500)
-    total_orders = len(orders)
+def dashboard_overview(user: dict = Depends(get_current_user)):
+    my_books = sb.table("books").select("id", count="exact").eq("owner_id", user["id"]).execute().count or 0
+    orders = sb.table("orders").select("*").execute().data
+    my_orders = [o for o in orders if any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))]
     revenue = 0.0
-    for o in orders:
-        for it in o["items"]:
-            if it["seller_id"] == user["id"]:
-                revenue += it["price"] * it["quantity"]
-    return {
-        "total_books": my_books,
-        "total_orders": total_orders,
-        "revenue": revenue,
-    }
+    for o in my_orders:
+        for it in (o.get("items") or []):
+            if it.get("seller_id") == user["id"]:
+                revenue += float(it.get("price") or 0) * (it.get("quantity") or 0)
+    return {"total_books": my_books, "total_orders": len(my_orders), "revenue": revenue}
 
 
-# ---------- Register router ----------
+# ---------- Register ----------
 app.include_router(api)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    client.close()
