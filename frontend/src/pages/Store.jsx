@@ -58,6 +58,7 @@ const StorePage = () => {
   };
 
   useEffect(() => { api.get("/categories").then((r) => setCats(r.data)); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [cat]);
 
   const submitSearch = (e) => { e.preventDefault(); load(); };

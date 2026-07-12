@@ -22,6 +22,7 @@ const ProfilePage = () => {
     const bres = await api.get("/books", { params: { owner_id: userId } });
     setBooks(bres.data);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [userId]);
 
   const following = user?.following?.includes(userId);

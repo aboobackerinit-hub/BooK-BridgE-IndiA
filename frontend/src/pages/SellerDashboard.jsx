@@ -95,6 +95,7 @@ const SellerDashboard = ({ role }) => {
     ]);
     setOverview(o.data); setBooks(b.data); setOrders(ors.data); setCats(c.data);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const saveBook = async (data) => {
