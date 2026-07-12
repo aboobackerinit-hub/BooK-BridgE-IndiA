@@ -100,3 +100,19 @@ See `/app/memory/test_credentials.md`
 ## Not doable by main agent
 - Git push to GitHub → user must click "Save to GitHub" button in Emergent UI
 - Vercel deploy → user-side; frontend only will work; backend needs separate hosting (Railway/Render/etc.)
+
+## Iteration 7 (2026-01) — Vercel Serverless Restructure
+- ✅ Created /app/api/index.py — Vercel serverless function entry (imports FastAPI app from backend/server.py)
+- ✅ Created /app/vercel.json with build config, function config (@vercel/python@4.3.1, maxDuration 30s, includeFiles backend/**), rewrites (/api/* → /api/index.py)
+- ✅ Created lean /app/requirements.txt (repo root) + /app/api/requirements.txt (function-local, 6 deps only)
+- ✅ Created /app/frontend/.env.production with REACT_APP_BACKEND_URL="" (same-origin)
+- ✅ Updated /app/frontend/src/lib/api.js to fallback to same-origin when env is empty
+- ✅ Created /app/VERCEL_DEPLOY.md with full deployment instructions
+- ✅ Local dev (supervisor + preview) still works (backend at /app/backend/server.py unchanged)
+- ✅ Verified /app/api/index.py imports cleanly (48 routes exposed)
+
+## User Action Items
+- Click "Save to GitHub" → push to main
+- Import repo in Vercel → set env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS)
+- Leave REACT_APP_BACKEND_URL blank (same-origin) or set to Vercel URL
+- Deploy — Vercel auto-detects vercel.json and builds frontend + Python function together

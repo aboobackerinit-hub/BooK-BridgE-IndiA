@@ -1,0 +1,14 @@
+node_modules
+.git
+.emergent
+frontend/node_modules
+frontend/build
+tests
+memory
+scripts
+*.log
+.DS_Store
+supabase_schema.sql
+auth_testing.md
+VERCEL_DEPLOY.md
+design_guidelines.json
