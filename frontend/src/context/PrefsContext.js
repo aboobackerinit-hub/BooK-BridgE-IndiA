@@ -4,13 +4,13 @@ const PrefsContext = createContext(null);
 
 const translations = {
   en: {
-    store: "Store", reviews: "Reviews", cart: "Cart", chat: "Discussion",
+    store: "Store", reviews: "Community", cart: "Cart", chat: "Discussion",
     dashboard: "Dashboard", profile: "My Profile", settings: "Settings",
     orders: "My Orders", logout: "Logout", welcome_back: "Welcome back",
     login_title: "Login to your account", search_placeholder: "Search title, author, ISBN...",
   },
   ml: {
-    store: "സ്റ്റോർ", reviews: "അഭിപ്രായങ്ങൾ", cart: "കാർട്ട്", chat: "ചർച്ച",
+    store: "സ്റ്റോർ", reviews: "കമ്മ്യൂണിറ്റി", cart: "കാർട്ട്", chat: "ചർച്ച",
     dashboard: "ഡാഷ്ബോർഡ്", profile: "എൻ്റെ പ്രൊഫൈൽ", settings: "സെറ്റിംഗ്സ്",
     orders: "എൻ്റെ ഓർഡറുകൾ", logout: "പുറത്തുകടക്കുക", welcome_back: "തിരികെ സ്വാഗതം",
     login_title: "അക്കൗണ്ടിലേക്ക് ലോഗിൻ ചെയ്യുക", search_placeholder: "പേര്, രചയിതാവ്, ISBN തിരയുക...",

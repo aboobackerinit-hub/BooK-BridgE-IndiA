@@ -118,7 +118,7 @@ const ReviewsPage = () => {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Timeline</div>
-        <h1 className="font-serif text-4xl mb-1">Book Reviews</h1>
+        <h1 className="font-serif text-4xl mb-1">Community</h1>
         <p className="text-muted-foreground">Write from your reading. Share, like, and discuss.</p>
       </div>
 
