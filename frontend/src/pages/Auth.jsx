@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
@@ -87,15 +86,6 @@ export const LoginPage = () => {
       <div className="mt-6 text-sm text-muted-foreground text-center">
         New to BookBridge? <Link to="/register" className="text-primary font-medium hover:underline" data-testid="link-to-register">Create an account</Link>
       </div>
-      <Card className="mt-8 p-4 bg-muted/40 border-dashed">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Demo Accounts</div>
-        <div className="space-y-1 text-xs font-mono">
-          <div>admin@bookbridge.in / Admin@123</div>
-          <div>priya@demo.in / demo123 (Store Owner)</div>
-          <div>raj@demo.in / demo123 (Publisher)</div>
-          <div>aditi@demo.in / demo123 (User)</div>
-        </div>
-      </Card>
     </AuthLayout>
   );
 };
