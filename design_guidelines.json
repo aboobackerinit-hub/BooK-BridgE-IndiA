@@ -1,0 +1,156 @@
+{
+  "project_name": "BookBridge India",
+  "design_context": "hybrid_fullstack",
+  "theme": "ORGANIC & EARTHY (Light Theme prioritized)",
+  "general_ui_ux_design_guidelines": [
+    "Use generous spacing (2-3x typical) for a luxurious, uncluttered feel.",
+    "Do not use generic centered layouts. Asymmetry creates tension and interest.",
+    "Implement glass-morphism effects (backdrop-blur-xl bg-white/70) for sticky headers, never use pure transparent headers.",
+    "Every interaction needs micro-animations - hover states, transitions (excluding transform in global all).",
+    "Use pill-shaped or softly rounded buttons with interaction animations.",
+    "Incorporate subtle grain textures or noise overlays to break digital flatness.",
+    "Ensure contrast passes APCA/WCAG standards. No fully transparent backgrounds under text.",
+    "Include data-testid on all interactive elements.",
+    "Opt for optical alignment over strict geometrical alignment."
+  ],
+  "typography": {
+    "strategy": "The 'Old Money Tech' - Classic Serif Headings + Clean Sans Body",
+    "fonts": {
+      "headings": "Playfair Display or Cormorant Garamond (font-serif, elegant, high character for Book covers and headings)",
+      "body": "Inter or DM Sans (font-sans, highly readable for dense content)",
+      "mono": "JetBrains Mono (for BBID, tracking numbers, and order IDs)"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight",
+      "h3": "text-xl sm:text-2xl tracking-tight",
+      "h4": "text-lg sm:text-xl",
+      "body": "text-base sm:text-sm leading-relaxed",
+      "small": "text-sm text-muted-foreground",
+      "overline": "text-xs uppercase tracking-[0.2em] font-medium"
+    }
+  },
+  "colors": {
+    "archetype": "ORGANIC & EARTHY",
+    "description": "Warm, grounded palette reflecting Indian culture (terracotta, sage, warm sand) while maintaining trust and readability. Avoid standard SaaS Blue.",
+    "palette": {
+      "primary": {
+        "DEFAULT": "#C05621",
+        "foreground": "#FFFFFF",
+        "description": "Terracotta / Warm Rust. Used for main CTAs, Buy buttons."
+      },
+      "secondary": {
+        "DEFAULT": "#6B8E23",
+        "foreground": "#FFFFFF",
+        "description": "Olive / Sage Green. For successful states, 'Available' tags, social follows."
+      },
+      "background": {
+        "DEFAULT": "#FAFAF9",
+        "description": "Warm Off-white / Stone. Keeps the app feeling like physical paper."
+      },
+      "foreground": {
+        "DEFAULT": "#1C1917",
+        "description": "Deep Charcoal, not pure black. Softer on the eyes for reading feeds."
+      },
+      "muted": {
+        "DEFAULT": "#F5F5F4",
+        "foreground": "#78716C"
+      },
+      "accent": {
+        "DEFAULT": "#FDE68A",
+        "foreground": "#92400E",
+        "description": "Warm Ochre / Sand for highlighting special editions or publisher badges."
+      },
+      "border": "#E7E5E4",
+      "card": {
+        "DEFAULT": "#FFFFFF",
+        "foreground": "#1C1917"
+      }
+    }
+  },
+  "layouts": {
+    "spacing_scale": "p-2, p-4, p-6, p-8, p-12, p-16",
+    "container_padding": "Internal padding of p-6 or p-8 for cards to prevent text collision.",
+    "grid_system": {
+      "marketing_hero": "grid-cols-1 lg:grid-cols-12 gap-8. Asymmetric span logic (e.g., col-span-7 and col-span-5).",
+      "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6. Dense layout for Store Owner/Publisher panels.",
+      "social_feed": "Max-width wrapper (max-w-2xl mx-auto) for Facebook-style timeline to maintain readability. Use sidebars for trends/suggestions.",
+      "marketplace_grid": "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:grid-cols-5 gap-6 for Flipkart/Amazon style product listing."
+    }
+  },
+  "visual_enhancers": {
+    "surfaces": [
+      "Glassmorphism: Use backdrop-blur-xl bg-white/70 for Sticky Navbars and Chat Headers.",
+      "Neumorphism (Soft UI): Subtle ambient shadow + 1px border-border for Dashboard Cards and Product Cards.",
+      "Textures: Add a very faint SVG noise overlay on the background for a 'paper-like' tactile feel."
+    ],
+    "shadows": {
+      "sm": "shadow-[0_2px_8px_rgba(28,25,23,0.04)]",
+      "md": "shadow-[0_8px_24px_rgba(28,25,23,0.08)]",
+      "glass": "shadow-[0_8px_32px_rgba(28,25,23,0.08)]"
+    },
+    "borders": "rounded-2xl for major containers, rounded-xl for inner elements, rounded-full for buttons."
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full). Hover: slightly lift (-translate-y-0.5) and add shadow-md.",
+    "product_cards": "Image on top (max-h-64 object-cover), content below. 1px border. Hover: shadow-md border-primary/20.",
+    "social_feed_cards": "Avatar, Name, Time on top. Text content, then Image. Action bar (Like, Comment, Share) at bottom. No heavy shadows, flat with 1px border.",
+    "chat_bubbles": "Sent: bg-primary text-primary-foreground rounded-l-2xl rounded-tr-2xl. Received: bg-muted text-foreground rounded-r-2xl rounded-tl-2xl.",
+    "dashboards": "Data tables using Shadcn UI. Sidebar navigation. High-density data layout without overuse of cards."
+  },
+  "motion": {
+    "hover": "transition-colors duration-200, hover:-translate-y-0.5 on interactive cards.",
+    "page_transitions": "Fade in and slight slide up (framer-motion).",
+    "social_likes": "Spring animation on the heart icon when liked."
+  },
+  "images_urls": [
+    {
+      "url": "https://images.unsplash.com/photo-1491841651911-c44c30c34548?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwzfHxzdGFjayUyMG9mJTIwYm9va3MlMjB2aW50YWdlfGVufDB8fHx8MTc4Mzg3OTY2M3ww&ixlib=rb-4.1.0&q=85",
+      "description": "Stack of vintage brown hardbound books",
+      "category": "hero_background"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1761753088381-9fcaa087edae?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHw0fHxpbmRpYW4lMjBzdHJlZXQlMjBtYXJrZXQlMjBib29rc3xlbnwwfHx8fDE3ODM4Nzk2NjN8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Street vendor selling books under a large tree in India",
+      "category": "marketing_story"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1535688391459-479d308104f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwxfHxwZW9wbGUlMjByZWFkaW5nJTIwY2FmZXxlbnwwfHx8fDE3ODM4Nzk2NjN8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Woman reading book inside coffee shop",
+      "category": "social_feature_illustration"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjB3cml0aW5nJTIwbm90ZWJvb2t8ZW58MHx8fHwxNzgzODc5NjYzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Person writing on wooden table near mug",
+      "category": "publisher_feature_illustration"
+    }
+  ],
+  "accessibility": [
+    "Ensure contrast meets APCA/WCAG standards, especially for Terracotta on Off-white.",
+    "Add aria-hidden='true' to decorative icons.",
+    "Support keyboard navigation in Dashboards and Social Feed.",
+    "Use data-testid attributes for all functional elements (e.g., data-testid='buy-now-btn')."
+  ],
+  "libraries": {
+    "icons": "lucide-react (default) and @phosphor-icons/react for high-end duotone icons in dashboards.",
+    "animation": "framer-motion",
+    "components": "shadcn/ui (highly customized to match warm terracotta theme)",
+    "charts": "recharts (for publisher/admin dashboards)",
+    "notifications": "sonner (Toasts)"
+  },
+  "instructions_to_main_agent": "Focus on separating the Layouts cleanly. The Marketplace should feel like an airy, trusted e-commerce site with product grids. The Social Feed should be contained (max-w-2xl) to prevent text from stretching too wide, mimicking Facebook's centered feed. The Dashboards must use dense layouts with sidebar navigation. Apply the warm 'Terracotta and Sage' palette consistently. Use framer-motion for smooth page transitions and micro-interactions.",
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Do not converge toward generic outputs. Avoid 'AI slop' aesthetics.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements.",
+    "You MUST NOT center align the app container (.App { text-align: center; }).",
+    "Always use modern button styles (pill-shaped or softly rounded) with hover animations.",
+    "NEVER use AI assistant Emoji characters (🤖🧠) for icons.",
+    "Every interaction needs micro-animations (hover states, transitions).",
+    "Use generous spacing (2-3x typical).",
+    "Prioritize using pre-existing components from src/components/ui.",
+    "Use sonner for toasts (/app/frontend/src/components/ui/sonner.js). The project uses .js files, not .tsx.",
+    "NEVER use placeholder URLs for images. Use the provided image URLs."
+  ]
+}
