@@ -31,6 +31,29 @@ BUCKET = "images"
 app = FastAPI(title="BookBridge India API (Supabase)")
 api = APIRouter(prefix="/api")
 
+
+@api.get("/health")
+def health():
+    """Diagnostic endpoint — safe to expose; does not leak secrets."""
+    info = {
+        "ok": True,
+        "supabase_url_set": bool(os.environ.get("SUPABASE_URL")),
+        "service_role_set": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY")),
+        "jwt_secret_set": bool(os.environ.get("JWT_SECRET")),
+        "supabase_url_host": (os.environ.get("SUPABASE_URL") or "").replace("https://", "").split(".")[0],
+        "python_version": os.sys.version.split()[0],
+    }
+    # Try a live query
+    try:
+        res = sb.table("users").select("id", count="exact").limit(1).execute()
+        info["db_reachable"] = True
+        info["db_user_count"] = res.count
+    except Exception as e:
+        info["db_reachable"] = False
+        info["db_error"] = str(e)[:200]
+    return info
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bookbridge")
 
