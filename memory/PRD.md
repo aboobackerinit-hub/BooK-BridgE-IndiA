@@ -53,3 +53,16 @@ BookBridge India — social + marketplace platform for books in India with 4 use
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`
+
+## Iteration 2 (2026-01)
+- ✅ Emerald green color palette (replaced terracotta)
+- ✅ Dark mode with toggle button in top nav + Settings
+- ✅ Language selector (English / Malayalam) — nav labels switch
+- ✅ Cart removed from top nav → moved into user menu dropdown (with live count badge)
+- ✅ Redesigned Settings page with 6 tabs: Profile, Account, Appearance, Notifications, Email, Blocked
+- ✅ Change password (with current-password verification)
+- ✅ Delete account (destructive dialog with password confirm — cascades books/posts/cart/messages)
+- ✅ Block/Unblock users (button on profile + list in settings)
+- ✅ Email preferences (orders / messages / follows / marketing)
+- ✅ Seller order card highlights buyer's shipping address (📦 Ship to block)
+- ⏭️ Razorpay: skipped by user — keeping Cash on Delivery

@@ -23,34 +23,55 @@ body {
 
 @layer base {
   :root {
-    /* Warm Off-white background */
-    --background: 40 20% 98%;
-    --foreground: 20 14% 10%;
+    /* Soft green-tinted off-white */
+    --background: 140 25% 98%;
+    --foreground: 155 25% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 20 14% 10%;
+    --card-foreground: 155 25% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 10%;
-    /* Terracotta primary */
-    --primary: 18 71% 44%;
-    --primary-foreground: 40 20% 98%;
-    /* Sage secondary */
-    --secondary: 75 60% 35%;
-    --secondary-foreground: 40 20% 98%;
-    --muted: 30 10% 96%;
-    --muted-foreground: 25 8% 44%;
-    --accent: 45 96% 76%;
-    --accent-foreground: 32 82% 30%;
+    --popover-foreground: 155 25% 10%;
+    /* Fresh Emerald primary */
+    --primary: 152 76% 36%;
+    --primary-foreground: 140 25% 98%;
+    /* Deep forest secondary */
+    --secondary: 160 60% 24%;
+    --secondary-foreground: 140 25% 98%;
+    --muted: 140 20% 96%;
+    --muted-foreground: 150 8% 44%;
+    --accent: 152 70% 90%;
+    --accent-foreground: 152 76% 22%;
     --destructive: 0 72% 51%;
-    --destructive-foreground: 40 20% 98%;
-    --border: 25 15% 89%;
-    --input: 25 15% 89%;
-    --ring: 18 71% 44%;
-    --chart-1: 18 71% 44%;
-    --chart-2: 75 60% 35%;
+    --destructive-foreground: 140 25% 98%;
+    --border: 145 15% 89%;
+    --input: 145 15% 89%;
+    --ring: 152 76% 36%;
+    --chart-1: 152 76% 36%;
+    --chart-2: 160 60% 24%;
     --chart-3: 45 96% 60%;
     --chart-4: 32 82% 40%;
     --chart-5: 200 40% 45%;
     --radius: 0.75rem;
+  }
+  .dark {
+    --background: 155 20% 8%;
+    --foreground: 140 15% 95%;
+    --card: 155 18% 12%;
+    --card-foreground: 140 15% 95%;
+    --popover: 155 18% 12%;
+    --popover-foreground: 140 15% 95%;
+    --primary: 152 70% 45%;
+    --primary-foreground: 155 20% 8%;
+    --secondary: 160 40% 30%;
+    --secondary-foreground: 140 15% 95%;
+    --muted: 155 15% 18%;
+    --muted-foreground: 140 10% 65%;
+    --accent: 152 40% 25%;
+    --accent-foreground: 140 15% 95%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 140 15% 95%;
+    --border: 155 15% 22%;
+    --input: 155 15% 22%;
+    --ring: 152 70% 45%;
   }
 }
 
@@ -99,9 +120,15 @@ body {
   box-shadow: 0 8px 24px rgba(28, 25, 23, 0.08);
 }
 
-/* Book spine gradient badge */
+/* Book spine gradient badge - emerald */
 .spine {
-  background: linear-gradient(135deg, #C05621 0%, #92400E 100%);
+  background: linear-gradient(135deg, hsl(152, 76%, 36%) 0%, hsl(160, 60%, 24%) 100%);
+}
+.dark .paper-bg {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+.dark .glass {
+  background-color: rgba(20, 30, 25, 0.75);
 }
 
 /* Fade in animation */

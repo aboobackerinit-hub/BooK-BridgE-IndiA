@@ -16,7 +16,7 @@ const AuthLayout = ({ children }) => (
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}>
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/70 via-primary/40 to-secondary/50" />
+      <div className="absolute inset-0 bg-gradient-to-br from-secondary/80 via-primary/60 to-primary/40" />
       <div className="relative z-10 flex items-center gap-3 text-white">
         <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-lg flex items-center justify-center border border-white/30">
           <BookOpen className="w-6 h-6" />

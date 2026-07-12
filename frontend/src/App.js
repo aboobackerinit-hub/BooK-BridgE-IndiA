@@ -2,6 +2,7 @@ import React from "react";
 import "@/index.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { PrefsProvider } from "@/context/PrefsContext";
 import { Toaster } from "@/components/ui/sonner";
 import { LoginPage, RegisterPage } from "@/pages/Auth";
 import AppShell from "@/components/layout/AppShell";
@@ -27,7 +28,8 @@ const RoleGuard = ({ roles, children }) => {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <PrefsProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -48,8 +50,9 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/store" replace />} />
         </Routes>
+        </BrowserRouter>
         <Toaster position="top-right" richColors />
-      </BrowserRouter>
+      </PrefsProvider>
     </AuthProvider>
   );
 }

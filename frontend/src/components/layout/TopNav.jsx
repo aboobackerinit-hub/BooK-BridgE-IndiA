@@ -1,23 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
+import { usePrefs } from "@/context/PrefsContext";
+import api from "@/lib/api";
 import {
   BookOpen, Store, Newspaper, ShoppingBag, MessageCircle,
-  Settings, LayoutDashboard, LogOut, Search
+  Settings, LayoutDashboard, LogOut, User, Package, Moon, Sun
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-
-const NAV = [
-  { to: "/store", label: "Store", icon: Store, testid: "nav-store" },
-  { to: "/reviews", label: "Reviews", icon: Newspaper, testid: "nav-reviews" },
-  { to: "/cart", label: "Cart", icon: ShoppingBag, testid: "nav-cart" },
-  { to: "/chat", label: "Discussion", icon: MessageCircle, testid: "nav-chat" },
-];
 
 const dashboardRoute = (role) => {
   if (role === "admin") return "/admin";
@@ -28,8 +23,23 @@ const dashboardRoute = (role) => {
 
 const TopNav = () => {
   const { user, logout } = useAuth();
+  const { theme, setTheme, t } = usePrefs();
   const navigate = useNavigate();
   const dashRoute = dashboardRoute(user?.role);
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const load = () => api.get("/cart").then((r) => setCartCount(r.data.items?.length || 0)).catch(() => {});
+    load();
+    const iv = setInterval(load, 8000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const NAV = [
+    { to: "/store", label: t("store"), icon: Store, testid: "nav-store" },
+    { to: "/reviews", label: t("reviews"), icon: Newspaper, testid: "nav-reviews" },
+    { to: "/chat", label: t("chat"), icon: MessageCircle, testid: "nav-chat" },
+  ];
 
   return (
     <header className="glass sticky top-0 z-40">
@@ -75,52 +85,68 @@ const TopNav = () => {
               }
             >
               <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
-              Dashboard
+              {t("dashboard")}
             </NavLink>
           )}
         </nav>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-muted transition-colors" data-testid="user-menu-trigger">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                  {user?.name?.[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="text-left hidden sm:block">
-                <div className="text-sm font-medium leading-tight">{user?.name}</div>
-                <div className="text-[10px] font-mono text-muted-foreground leading-tight">{user?.bbid}</div>
-              </div>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="font-serif">{user?.name}</div>
-              <div className="text-xs text-muted-foreground font-normal capitalize">{user?.role?.replace("_", " ")}</div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)} data-testid="menu-my-profile">
-              My Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
-              <Settings className="w-4 h-4 mr-2" /> Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">
-              My Orders
-            </DropdownMenuItem>
-            {dashRoute && (
-              <DropdownMenuItem onClick={() => navigate(dashRoute)} data-testid="menu-dashboard">
-                <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+            data-testid="theme-toggle-btn"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-muted transition-colors" data-testid="user-menu-trigger">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user?.avatar_url} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {user?.name?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-left hidden sm:block">
+                  <div className="text-sm font-medium leading-tight">{user?.name}</div>
+                  <div className="text-[10px] font-mono text-muted-foreground leading-tight">{user?.bbid}</div>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>
+                <div className="font-serif">{user?.name}</div>
+                <div className="text-xs text-muted-foreground font-normal capitalize">{user?.role?.replace("_", " ")}</div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)} data-testid="menu-my-profile">
+                <User className="w-4 h-4 mr-2" /> {t("profile")}
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { logout(); navigate("/login"); }} data-testid="menu-logout">
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem onClick={() => navigate("/cart")} data-testid="menu-cart">
+                <ShoppingBag className="w-4 h-4 mr-2" /> {t("cart")}
+                {cartCount > 0 && <Badge className="ml-auto bg-primary text-primary-foreground">{cartCount}</Badge>}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">
+                <Package className="w-4 h-4 mr-2" /> {t("orders")}
+              </DropdownMenuItem>
+              {dashRoute && (
+                <DropdownMenuItem onClick={() => navigate(dashRoute)} data-testid="menu-dashboard">
+                  <LayoutDashboard className="w-4 h-4 mr-2" /> {t("dashboard")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
+                <Settings className="w-4 h-4 mr-2" /> {t("settings")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { logout(); navigate("/login"); }} data-testid="menu-logout">
+                <LogOut className="w-4 h-4 mr-2" /> {t("logout")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Mobile nav */}
@@ -135,6 +161,11 @@ const TopNav = () => {
             {n.label}
           </NavLink>
         ))}
+        <button onClick={() => navigate("/cart")} className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] text-muted-foreground relative">
+          <ShoppingBag className="w-5 h-5" />
+          {cartCount > 0 && <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center">{cartCount}</span>}
+          {t("cart")}
+        </button>
       </div>
     </header>
   );

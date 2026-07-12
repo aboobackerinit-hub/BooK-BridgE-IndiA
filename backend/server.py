@@ -162,6 +162,22 @@ class MessageIn(BaseModel):
     text: str
 
 
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class DeleteAccountIn(BaseModel):
+    password: str
+
+
+class EmailPrefsIn(BaseModel):
+    email_orders: Optional[bool] = None
+    email_messages: Optional[bool] = None
+    email_follows: Optional[bool] = None
+    email_marketing: Optional[bool] = None
+
+
 # ---------- Startup ----------
 @app.on_event("startup")
 async def startup():
@@ -363,6 +379,34 @@ async def logout(user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@api.post("/auth/change-password")
+async def change_password(body: ChangePasswordIn, user: dict = Depends(get_current_user)):
+    if len(body.new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    doc = await db.users.find_one({"id": user["id"]})
+    if not doc or not verify_password(body.current_password, doc["password_hash"]):
+        raise HTTPException(400, "Current password is incorrect")
+    await db.users.update_one({"id": user["id"]},
+                              {"$set": {"password_hash": hash_password(body.new_password)}})
+    return {"ok": True}
+
+
+@api.post("/auth/delete-account")
+async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current_user)):
+    if user["role"] == "admin":
+        raise HTTPException(400, "Admin account cannot be deleted")
+    doc = await db.users.find_one({"id": user["id"]})
+    if not doc or not verify_password(body.password, doc["password_hash"]):
+        raise HTTPException(400, "Password is incorrect")
+    uid = user["id"]
+    await db.users.delete_one({"id": uid})
+    await db.books.delete_many({"owner_id": uid})
+    await db.posts.delete_many({"user_id": uid})
+    await db.cart.delete_many({"user_id": uid})
+    await db.messages.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
+    return {"ok": True}
+
+
 # ---------- Users / Profile ----------
 @api.get("/users/{user_id}")
 async def get_user(user_id: str):
@@ -411,6 +455,42 @@ async def toggle_follow(user_id: str, user: dict = Depends(get_current_user)):
         await db.users.update_one({"id": user["id"]}, {"$addToSet": {"following": user_id}})
         await db.users.update_one({"id": user_id}, {"$addToSet": {"followers": user["id"]}})
         return {"following": True}
+
+
+@api.post("/users/{user_id}/block")
+async def toggle_block(user_id: str, user: dict = Depends(get_current_user)):
+    if user_id == user["id"]:
+        raise HTTPException(400, "Cannot block yourself")
+    if not await db.users.find_one({"id": user_id}):
+        raise HTTPException(404, "User not found")
+    blocked = user.get("blocked", []) or []
+    if user_id in blocked:
+        await db.users.update_one({"id": user["id"]}, {"$pull": {"blocked": user_id}})
+        return {"blocked": False}
+    await db.users.update_one({"id": user["id"]}, {"$addToSet": {"blocked": user_id}})
+    return {"blocked": True}
+
+
+@api.get("/users/me/blocked")
+async def list_blocked(user: dict = Depends(get_current_user)):
+    ids = user.get("blocked", []) or []
+    if not ids:
+        return []
+    users = await db.users.find({"id": {"$in": ids}},
+                                {"_id": 0, "password_hash": 0}).to_list(200)
+    return users
+
+
+@api.put("/users/me/email-prefs")
+async def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
+    update = {}
+    for k, v in body.model_dump().items():
+        if v is not None:
+            update[f"email_prefs.{k}"] = v
+    if update:
+        await db.users.update_one({"id": user["id"]}, {"$set": update})
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return u
 
 
 # ---------- Books ----------

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, UserPlus, UserCheck, BookOpen } from "lucide-react";
+import { MessageCircle, UserPlus, UserCheck, BookOpen, Ban } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -25,10 +25,16 @@ const ProfilePage = () => {
   useEffect(() => { load(); }, [userId]);
 
   const following = user?.following?.includes(userId);
+  const blocked = user?.blocked?.includes(userId);
   const toggleFollow = async () => {
     await api.post(`/users/${userId}/follow`);
     await refresh();
     load();
+  };
+  const toggleBlock = async () => {
+    const { data } = await api.post(`/users/${userId}/block`);
+    await refresh();
+    toast.success(data.blocked ? "User blocked" : "User unblocked");
   };
 
   if (!profile) return <div className="text-center py-20 text-muted-foreground">Loading...</div>;
@@ -51,12 +57,15 @@ const ProfilePage = () => {
                 </div>
               </div>
               {!isMe && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button onClick={toggleFollow} variant={following ? "outline" : "default"} className="rounded-full" data-testid="follow-btn">
                     {following ? (<><UserCheck className="w-4 h-4 mr-1" /> Following</>) : (<><UserPlus className="w-4 h-4 mr-1" /> Follow</>)}
                   </Button>
                   <Button onClick={() => navigate(`/chat/${profile.id}`)} className="rounded-full" data-testid="message-btn">
                     <MessageCircle className="w-4 h-4 mr-1" /> Message
+                  </Button>
+                  <Button onClick={toggleBlock} variant="ghost" size="sm" className="rounded-full text-destructive hover:bg-destructive/10" data-testid="block-btn">
+                    <Ban className="w-4 h-4 mr-1" /> {blocked ? "Unblock" : "Block"}
                   </Button>
                 </div>
               )}

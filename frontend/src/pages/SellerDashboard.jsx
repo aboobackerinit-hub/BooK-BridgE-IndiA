@@ -219,7 +219,13 @@ const SellerDashboard = ({ role }) => {
                   <div className="text-xs text-muted-foreground">
                     {o.items.filter((it) => it.seller_id === user.id).map((it) => `${it.title} × ${it.quantity}`).join(", ")}
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground">📍 {o.address} · 📞 {o.phone}</div>
+                  <div className="mt-3 p-3 rounded-lg bg-accent/40 border border-accent">
+                    <div className="text-[10px] uppercase tracking-wider text-accent-foreground/70 mb-1">📦 Ship to</div>
+                    <div className="text-sm font-medium">{o.user_name}</div>
+                    <div className="text-sm">{o.address}</div>
+                    <div className="text-sm font-mono">📞 {o.phone}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Order #{o.order_no} · Payment: {o.payment_method?.toUpperCase()}</div>
+                  </div>
                 </Card>
               ))}
             </div>
