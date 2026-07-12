@@ -34,6 +34,7 @@ const ChatPage = () => {
     const load = async () => {
       const { data } = await api.get(`/chat/${userId}`);
       setMessages(data);
+      api.post(`/chat/${userId}/read`).catch(() => {});
     };
     load();
     const iv = setInterval(load, 3000);

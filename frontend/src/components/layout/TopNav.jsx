@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePrefs } from "@/context/PrefsContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 import {
   BookOpen, Store, Newspaper, ShoppingBag, MessageCircle,
-  Settings, LayoutDashboard, LogOut, User, Package, Moon, Sun
+  Settings, LayoutDashboard, LogOut, User, Package, Moon, Sun, Bell, Plus
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,8 @@ const TopNav = () => {
   const navigate = useNavigate();
   const dashRoute = dashboardRoute(user?.role);
   const [cartCount, setCartCount] = useState(0);
+  const [notif, setNotif] = useState({ unread_messages: 0, recent: [], pending_orders: 0 });
+  const lastSeenRef = useRef(0);
 
   useEffect(() => {
     const load = () => api.get("/cart").then((r) => setCartCount(r.data.items?.length || 0)).catch(() => {});
@@ -34,6 +37,28 @@ const TopNav = () => {
     const iv = setInterval(load, 8000);
     return () => clearInterval(iv);
   }, []);
+
+  useEffect(() => {
+    if (!user?.notifications_enabled) { setNotif({ unread_messages: 0, recent: [], pending_orders: 0 }); return; }
+    const loadNotif = async () => {
+      try {
+        const { data } = await api.get("/notifications");
+        setNotif(data);
+        const total = (data.unread_messages || 0) + (data.pending_orders || 0);
+        if (total > lastSeenRef.current && lastSeenRef.current > 0) {
+          const latest = data.recent?.[0];
+          if (latest) {
+            const { toast } = require("sonner");
+            toast(`💬 ${latest.from_user_name}`, { description: latest.text });
+          }
+        }
+        lastSeenRef.current = total;
+      } catch {}
+    };
+    loadNotif();
+    const iv = setInterval(loadNotif, 12000);
+    return () => clearInterval(iv);
+  }, [user?.notifications_enabled]);
 
   const NAV = [
     { to: "/store", label: t("store"), icon: Store, testid: "nav-store" },
@@ -91,6 +116,19 @@ const TopNav = () => {
         </nav>
 
         <div className="flex items-center gap-2">
+          {user?.notifications_enabled && (notif.unread_messages > 0 || notif.pending_orders > 0) && (
+            <button
+              onClick={() => navigate("/chat")}
+              className="relative w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+              data-testid="notif-bell-btn"
+              aria-label="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
+                {notif.unread_messages + notif.pending_orders}
+              </span>
+            </button>
+          )}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
@@ -123,6 +161,9 @@ const TopNav = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)} data-testid="menu-my-profile">
                 <User className="w-4 h-4 mr-2" /> {t("profile")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/sell")} data-testid="menu-sell-book" className="text-primary focus:text-primary">
+                <Plus className="w-4 h-4 mr-2" /> Sell a Book
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/cart")} data-testid="menu-cart">
                 <ShoppingBag className="w-4 h-4 mr-2" /> {t("cart")}

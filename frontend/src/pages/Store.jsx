@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, BookOpen } from "lucide-react";
+import { Search, Sparkles, BookOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1491841651911-c44c30c34548?w=1400";
 
@@ -42,6 +43,7 @@ const StorePage = () => {
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
@@ -64,6 +66,15 @@ const StorePage = () => {
 
   return (
     <div className="space-y-10">
+      {/* Floating Sell CTA */}
+      <button
+        onClick={() => navigate("/sell")}
+        data-testid="floating-sell-btn"
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-3 rounded-full shadow-lg shadow-primary/30 hover:-translate-y-0.5 transition-all"
+      >
+        <Plus className="w-4 h-4" />
+        <span className="font-medium text-sm">Sell a Book</span>
+      </button>
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl border border-border">
         <img src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />

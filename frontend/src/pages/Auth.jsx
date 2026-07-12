@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -42,8 +42,10 @@ export const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => { if (user) navigate("/store", { replace: true }); }, [user, navigate]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -101,16 +103,18 @@ export const LoginPage = () => {
 export const RegisterPage = () => {
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => { if (user) navigate("/store", { replace: true }); }, [user, navigate]);
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await register(form);
-      toast.success("Account created!");
-      navigate("/store");
+      toast.success("Account created! Please sign in.");
+      navigate("/login");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Registration failed");
     } finally { setLoading(false); }

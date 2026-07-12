@@ -14,6 +14,7 @@ import OrdersPage from "@/pages/Orders";
 import ChatPage from "@/pages/Chat";
 import ProfilePage from "@/pages/Profile";
 import SettingsPage from "@/pages/Settings";
+import SellBookPage from "@/pages/SellBook";
 import SellerDashboard from "@/pages/SellerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 
@@ -44,6 +45,7 @@ function App() {
             <Route path="/chat/:userId" element={<ChatPage />} />
             <Route path="/profile/:userId" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/sell" element={<SellBookPage />} />
             <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
             <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
             <Route path="/admin" element={<RoleGuard roles={["admin"]}><AdminDashboard /></RoleGuard>} />

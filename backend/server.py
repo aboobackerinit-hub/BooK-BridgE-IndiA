@@ -813,11 +813,40 @@ async def send_message(body: MessageIn, user: dict = Depends(get_current_user)):
         "from_user_name": user["name"],
         "to_user_id": body.to_user_id,
         "text": body.text,
+        "read": False,
         "created_at": now_iso(),
     }
     await db.messages.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@api.post("/chat/{other_user_id}/read")
+async def mark_thread_read(other_user_id: str, user: dict = Depends(get_current_user)):
+    tid = thread_id_of(user["id"], other_user_id)
+    await db.messages.update_many(
+        {"thread_id": tid, "to_user_id": user["id"], "read": False},
+        {"$set": {"read": True}},
+    )
+    return {"ok": True}
+
+
+@api.get("/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    if not user.get("notifications_enabled", True):
+        return {"unread_messages": 0, "recent": [], "pending_orders": 0}
+    unread = await db.messages.count_documents({"to_user_id": user["id"], "read": {"$ne": True}})
+    recent = await db.messages.find(
+        {"to_user_id": user["id"], "read": {"$ne": True}},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(5).to_list(5)
+    pending_orders = 0
+    if user.get("role") in ("store_owner", "publisher", "admin"):
+        pending_orders = await db.orders.count_documents({
+            "items.seller_id": user["id"],
+            "status": {"$in": ["New", "Processing"]},
+        })
+    return {"unread_messages": unread, "recent": recent, "pending_orders": pending_orders}
 
 
 # ---------- Admin ----------

@@ -66,3 +66,14 @@ See `/app/memory/test_credentials.md`
 - ✅ Email preferences (orders / messages / follows / marketing)
 - ✅ Seller order card highlights buyer's shipping address (📦 Ship to block)
 - ⏭️ Razorpay: skipped by user — keeping Cash on Delivery
+
+## Iteration 3 (2026-01)
+- ✅ Sign-up no longer auto-logs user in → redirects to /login with "Please sign in" toast
+- ✅ Login/Register pages auto-redirect to /store if already logged in
+- ✅ Notifications toggle now wired: bell icon in top nav shows badge for unread messages + pending seller orders; polls every 12s; only active when `notifications_enabled=true`; new-message toast pop-up
+- ✅ New "Sell a Book" page (`/sell`) accessible to every logged-in user (not just sellers/publishers) with:
+  - Live book cover preview
+  - Full details form (title, author, description, category, condition, edition, ISBN, language, price, stock, image URL)
+  - Entry points: user menu dropdown ("Sell a Book" with primary color) + floating CTA on Store page
+- ✅ New endpoints: GET /api/notifications, POST /api/chat/{other_user_id}/read
+- ✅ Messages now have `read` field for accurate unread tracking

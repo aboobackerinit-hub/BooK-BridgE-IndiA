@@ -24,10 +24,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (payload) => {
-    const { data } = await api.post("/auth/register", payload);
-    localStorage.setItem("bb_token", data.token);
-    setUser(data.user);
-    return data.user;
+    // Register user but do NOT store token — user must login separately
+    await api.post("/auth/register", payload);
+    return true;
   };
 
   const logout = () => {
