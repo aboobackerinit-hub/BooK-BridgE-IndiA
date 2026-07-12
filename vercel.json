@@ -2,7 +2,6 @@
   "version": 2,
   "buildCommand": "cd frontend && yarn install && CI=false yarn build",
   "outputDirectory": "frontend/build",
-  "installCommand": "echo 'skip root install'",
   "framework": null,
   "functions": {
     "api/index.py": {
@@ -12,8 +11,9 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/api", "destination": "/api/index.py" }
+    { "source": "/api", "destination": "/api" },
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
