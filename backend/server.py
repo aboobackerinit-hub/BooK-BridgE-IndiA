@@ -1,11 +1,16 @@
 from dotenv import load_dotenv
 from pathlib import Path
+# Load .env for local dev; Vercel injects env vars natively.
 load_dotenv(Path(__file__).parent / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
-from postgrest.exceptions import APIError
+try:
+    from postgrest.exceptions import APIError  # noqa
+except Exception:
+    class APIError(Exception):
+        pass
 import os
 import base64
 import logging
@@ -19,11 +24,18 @@ import jwt
 from datetime import datetime, timezone, timedelta
 
 # ---------- Setup ----------
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or ""
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+JWT_SECRET = os.environ.get("JWT_SECRET") or "dev-secret-please-set-in-env"
 
-JWT_SECRET = os.environ["JWT_SECRET"]
+# Fail loudly at REQUEST time, not import time — otherwise Vercel deploy hangs.
+sb: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    try:
+        sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    except Exception as _e:
+        logging.error(f"Supabase init failed: {_e}")
+
 JWT_ALG = "HS256"
 JWT_EXPIRE_HOURS = 24 * 7  # 7 days
 BUCKET = "images"
