@@ -84,3 +84,19 @@ See `/app/memory/test_credentials.md`
 - ✅ Applied to: Sell a Book page (book cover), Settings → Profile (circular avatar), Store Owner/Publisher dashboard Add/Edit book dialog
 - ✅ Upload UI: dashed drop zone → shows preview with "Change" and "X" buttons after upload
 - ✅ 6 MB file size cap with toast validation
+
+## Iteration 6 (2026-01) — Supabase Migration Complete
+- ✅ Migrated backend from MongoDB → Supabase Postgres (via supabase-py)
+- ✅ 6 tables: users, books, posts, cart, orders, messages (with RLS enabled)
+- ✅ Supabase Storage bucket "images" with public read policy
+- ✅ Base64 image dataURLs auto-uploaded to Supabase Storage on write (returns public CDN URL)
+- ✅ Seed data recreated in Supabase (4 users, 8 books, 3 posts)
+- ✅ Kept custom JWT+bcrypt auth (pragmatic — Supabase Auth would require email verification)
+- ✅ All existing frontend code unchanged — only backend swapped
+- ✅ Verified end-to-end via curl + Playwright screenshot
+- Env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY added to /app/backend/.env
+- Schema file at /app/supabase_schema.sql for reproducibility
+
+## Not doable by main agent
+- Git push to GitHub → user must click "Save to GitHub" button in Emergent UI
+- Vercel deploy → user-side; frontend only will work; backend needs separate hosting (Railway/Render/etc.)
