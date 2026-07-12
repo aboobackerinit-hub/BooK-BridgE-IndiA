@@ -77,3 +77,10 @@ See `/app/memory/test_credentials.md`
   - Entry points: user menu dropdown ("Sell a Book" with primary color) + floating CTA on Store page
 - ✅ New endpoints: GET /api/notifications, POST /api/chat/{other_user_id}/read
 - ✅ Messages now have `read` field for accurate unread tracking
+
+## Iteration 4 (2026-01)
+- ✅ Removed all image URL text fields; replaced with real file upload picker (ImageUpload component)
+- ✅ Client-side image resize to max 800px width @ JPEG q=0.85 → base64 dataURL stored in MongoDB (compact)
+- ✅ Applied to: Sell a Book page (book cover), Settings → Profile (circular avatar), Store Owner/Publisher dashboard Add/Edit book dialog
+- ✅ Upload UI: dashed drop zone → shows preview with "Change" and "X" buttons after upload
+- ✅ 6 MB file size cap with toast validation

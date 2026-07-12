@@ -16,6 +16,7 @@ import {
 import { BookOpen, TrendingUp, Package, DollarSign, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import ImageUpload from "@/components/ImageUpload";
 
 const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
 
@@ -28,32 +29,42 @@ const BookForm = ({ initial, onSave, categories }) => {
   const [f, setF] = useState(initial || emptyBook);
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label>Title</Label><Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} data-testid="book-title-input" /></div>
-        <div><Label>Author</Label><Input value={f.author} onChange={(e) => setF({ ...f, author: e.target.value })} data-testid="book-author-input" /></div>
-        <div><Label>Price (₹)</Label><Input type="number" value={f.price} onChange={(e) => setF({ ...f, price: parseFloat(e.target.value) || 0 })} data-testid="book-price-input" /></div>
-        <div><Label>Stock</Label><Input type="number" value={f.stock} onChange={(e) => setF({ ...f, stock: parseInt(e.target.value) || 0 })} data-testid="book-stock-input" /></div>
-        <div>
-          <Label>Category</Label>
-          <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
-            <SelectTrigger data-testid="book-category-select"><SelectValue /></SelectTrigger>
-            <SelectContent>{categories.filter((c) => c !== "All").map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-          </Select>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1">
+          <Label>Book photo</Label>
+          <ImageUpload
+            value={f.image_url}
+            onChange={(v) => setF({ ...f, image_url: v })}
+            aspect="cover"
+            testId="dash-book-image"
+          />
         </div>
-        <div>
-          <Label>Condition</Label>
-          <Select value={f.condition} onValueChange={(v) => setF({ ...f, condition: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="New">New</SelectItem>
-              <SelectItem value="Used">Used</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="md:col-span-2 grid grid-cols-2 gap-3">
+          <div className="col-span-2"><Label>Title</Label><Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} data-testid="book-title-input" /></div>
+          <div className="col-span-2"><Label>Author</Label><Input value={f.author} onChange={(e) => setF({ ...f, author: e.target.value })} data-testid="book-author-input" /></div>
+          <div><Label>Price (₹)</Label><Input type="number" value={f.price} onChange={(e) => setF({ ...f, price: parseFloat(e.target.value) || 0 })} data-testid="book-price-input" /></div>
+          <div><Label>Stock</Label><Input type="number" value={f.stock} onChange={(e) => setF({ ...f, stock: parseInt(e.target.value) || 0 })} data-testid="book-stock-input" /></div>
+          <div>
+            <Label>Category</Label>
+            <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
+              <SelectTrigger data-testid="book-category-select"><SelectValue /></SelectTrigger>
+              <SelectContent>{categories.filter((c) => c !== "All").map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Condition</Label>
+            <Select value={f.condition} onValueChange={(v) => setF({ ...f, condition: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="New">New</SelectItem>
+                <SelectItem value="Used">Used</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Language</Label><Input value={f.language} onChange={(e) => setF({ ...f, language: e.target.value })} /></div>
+          <div><Label>Edition</Label><Input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} /></div>
+          <div className="col-span-2"><Label>ISBN</Label><Input value={f.isbn} onChange={(e) => setF({ ...f, isbn: e.target.value })} data-testid="book-isbn-input" /></div>
         </div>
-        <div><Label>Language</Label><Input value={f.language} onChange={(e) => setF({ ...f, language: e.target.value })} /></div>
-        <div><Label>Edition</Label><Input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} /></div>
-        <div><Label>ISBN</Label><Input value={f.isbn} onChange={(e) => setF({ ...f, isbn: e.target.value })} data-testid="book-isbn-input" /></div>
-        <div><Label>Image URL</Label><Input value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} data-testid="book-image-input" /></div>
       </div>
       <div>
         <Label>Description</Label>

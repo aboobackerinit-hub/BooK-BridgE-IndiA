@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import {
   User, Lock, Bell, Ban, Trash2, Globe, Moon, Sun, Mail, ShieldAlert
 } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
 
 const SettingsPage = () => {
   const { user, setUser, logout } = useAuth();
@@ -118,32 +119,35 @@ const SettingsPage = () => {
         {/* PROFILE */}
         <TabsContent value="profile" className="mt-6 space-y-4">
           <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
-                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-serif">{form.name?.[0]}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <Label>Profile picture URL</Label>
-                <Input value={form.avatar_url} onChange={(e) => setForm({ ...form, avatar_url: e.target.value })}
-                  placeholder="https://..." data-testid="settings-avatar" />
+            <div className="flex items-start gap-6">
+              <div className="w-28 shrink-0">
+                <ImageUpload
+                  value={form.avatar_url}
+                  onChange={(v) => setForm((p) => ({ ...p, avatar_url: v }))}
+                  aspect="square"
+                  shape="circle"
+                  maxWidth={400}
+                  testId="settings-avatar"
+                />
+                <p className="text-[10px] text-center text-muted-foreground mt-2">Profile photo</p>
               </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="settings-name" />
-              </div>
-              <div>
-                <Label>BBID</Label>
-                <Input value={user?.bbid || ""} readOnly className="font-mono bg-muted" />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input value={user?.email || ""} readOnly className="bg-muted" />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="settings-phone" />
+              <div className="flex-1 grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Name</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="settings-name" />
+                </div>
+                <div>
+                  <Label>BBID</Label>
+                  <Input value={user?.bbid || ""} readOnly className="font-mono bg-muted" />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input value={user?.email || ""} readOnly className="bg-muted" />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="settings-phone" />
+                </div>
               </div>
             </div>
             <div>

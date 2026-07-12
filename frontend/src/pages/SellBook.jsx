@@ -12,6 +12,7 @@ import {
 import { BookOpen, Upload, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import ImageUpload from "@/components/ImageUpload";
 
 const empty = {
   title: "", author: "", description: "", price: 0, stock: 1,
@@ -141,13 +142,15 @@ const SellBookPage = () => {
 
           <Card className="p-6 space-y-4">
             <h3 className="font-serif text-xl">Photo</h3>
-            <Label>Image URL</Label>
-            <Input value={f.image_url} onChange={(e) => set("image_url", e.target.value)}
-              placeholder="https://... (paste a photo link)" data-testid="sell-image-input" />
-            <p className="text-xs text-muted-foreground">
-              <Upload className="w-3 h-3 inline mr-1" />
-              Tip: upload your book photo to Imgur or Google Photos and paste the direct image link.
-            </p>
+            <p className="text-xs text-muted-foreground">Upload a photo of your book. It will be shown as the cover on the store.</p>
+            <div className="max-w-xs">
+              <ImageUpload
+                value={f.image_url}
+                onChange={(v) => set("image_url", v)}
+                aspect="cover"
+                testId="sell-image"
+              />
+            </div>
           </Card>
 
           <Card className="p-6 space-y-4">
