@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "cd frontend && npm install --legacy-peer-deps && CI=false npm run build",
   "outputDirectory": "frontend/build",
+  "build": {
+    "env": {
+      "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
+    }
+  },
   "framework": null,
   "functions": {
     "api/index.py": {
