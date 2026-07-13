@@ -108,6 +108,10 @@ def clean(u: dict) -> dict:
 
 
 def get_user_by_id(uid: str) -> Optional[dict]:
+    try:
+        uuid.UUID(uid)
+    except ValueError:
+        return None
     res = sb.table("users").select("*").eq("id", uid).limit(1).execute()
     return res.data[0] if res.data else None
 
@@ -510,6 +514,10 @@ def list_books(q: Optional[str] = None, category: Optional[str] = None,
 
 @api.get("/books/{book_id}")
 def get_book(book_id: str):
+    try:
+        uuid.UUID(book_id)
+    except ValueError:
+        raise HTTPException(404, "Book not found")
     res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
     if not res.data:
         raise HTTPException(404, "Book not found")
