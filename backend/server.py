@@ -1,3 +1,18 @@
+import typing
+
+# Pydantic v1.10.x monkeypatch for Python 3.13 and 3.14
+# Python 3.14 changed the signature of ForwardRef._evaluate, making recursive_guard keyword-only.
+# Pydantic v1 calls it with 3 positional arguments (passing set() as the 3rd, which ends up in type_params).
+if hasattr(typing, "ForwardRef"):
+    _orig_evaluate = typing.ForwardRef._evaluate
+    def _patched_evaluate(self, globalns, localns, *args, **kwargs):
+        if len(args) == 1 and isinstance(args[0], set) and not kwargs:
+            import sys
+            if sys.version_info >= (3, 14) or sys.version_info >= (3, 13):
+                return _orig_evaluate(self, globalns, localns, (), recursive_guard=args[0])
+        return _orig_evaluate(self, globalns, localns, *args, **kwargs)
+    typing.ForwardRef._evaluate = _patched_evaluate
+
 from dotenv import load_dotenv
 from pathlib import Path
 # Load .env and .env.local for local dev; Vercel injects env vars natively.
@@ -428,7 +443,7 @@ def list_users(q: Optional[str] = None, role: Optional[str] = None):
 
 @api.put("/users/me")
 def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
-    update = {k: v for k, v in body.model_dump().items() if v is not None}
+    update = {k: v for k, v in body.dict().items() if v is not None}
     if update.get("avatar_url"):
         update["avatar_url"] = upload_data_url_to_storage(update["avatar_url"], prefix="avatars")
     if update:
@@ -485,7 +500,7 @@ def list_blocked(user: dict = Depends(get_current_user)):
 def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
     full = get_user_by_id(user["id"])
     prefs = full.get("email_prefs") or {}
-    for k, v in body.model_dump().items():
+    for k, v in body.dict().items():
         if v is not None:
             prefs[k] = v
     sb.table("users").update({"email_prefs": prefs}).eq("id", user["id"]).execute()
@@ -529,7 +544,7 @@ def get_book(book_id: str):
 
 @api.post("/books")
 def create_book(body: BookIn, user: dict = Depends(get_current_user)):
-    row = body.model_dump()
+    row = body.dict()
     row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
     row["owner_id"] = user["id"]
     row["owner_role"] = user["role"]
@@ -546,7 +561,7 @@ def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_use
     b = res.data[0]
     if b["owner_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    row = body.model_dump()
+    row = body.dict()
     row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
     sb.table("books").update(row).eq("id", book_id).execute()
     return sb.table("books").select("*").eq("id", book_id).limit(1).execute().data[0]
