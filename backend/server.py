@@ -326,6 +326,9 @@ def seed_all():
 
 @app.on_event("startup")
 def startup():
+    if os.environ.get("VERCEL") == "1":
+        logger.info("Running on Vercel, skipping automatic database seed.")
+        return
     try:
         seed_all()
     except Exception as e:
