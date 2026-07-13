@@ -54,7 +54,12 @@ export const LoginPage = () => {
       toast.success("Welcome back!");
       navigate("/store");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Login failed");
+      let msg = "Login failed";
+      if (err.response?.data?.detail) {
+        if (typeof err.response.data.detail === "string") msg = err.response.data.detail;
+        else if (Array.isArray(err.response.data.detail)) msg = err.response.data.detail[0].msg;
+      }
+      toast.error(msg);
     } finally { setLoading(false); }
   };
 
@@ -106,7 +111,12 @@ export const RegisterPage = () => {
       toast.success("Account created! Please sign in.");
       navigate("/login");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Registration failed");
+      let msg = "Registration failed";
+      if (err.response?.data?.detail) {
+        if (typeof err.response.data.detail === "string") msg = err.response.data.detail;
+        else if (Array.isArray(err.response.data.detail)) msg = err.response.data.detail[0].msg;
+      }
+      toast.error(msg);
     } finally { setLoading(false); }
   };
 
