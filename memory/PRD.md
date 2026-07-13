@@ -118,6 +118,16 @@ See `/app/memory/test_credentials.md`
 - Deploy — Vercel auto-detects vercel.json and builds frontend + Python function together
 
 ## Iteration 8 (2026-02) — Bug batch + Vercel deploy hardening
+**Root cause:** Vercel switched to `uv` as default Python installer and honors `pyproject.toml` + `uv.lock` over `requirements.txt`. Without pyproject.toml, uv was re-resolving deps against Vercel's newer default Python (likely 3.13), breaking on `bcrypt==4.1.3` / `cryptography==44.0.1` (no 3.13 wheels at that time).
+
+**Fix applied:**
+- ✅ Added `/app/pyproject.toml` with `requires-python = "~=3.12.0"`, all 8 deps pinned, `[tool.uv] python-downloads = "never"` (prevents uv from silently swapping interpreter).
+- ✅ Generated `/app/uv.lock` via `uv lock` (37 packages, committed) so Vercel never re-resolves.
+- ✅ Restored `/app/requirements.txt` at repo root as fallback.
+- ✅ Kept `/app/api/requirements.txt` (byte-identical) + `/app/.python-version=3.12` as extra safety nets.
+- ✅ Removed outdated `@vercel/python@4.7.2` pin from vercel.json — Vercel now uses latest runtime with uv support.
+- ✅ Verified locally: `uv sync --frozen` and `uv pip install -r requirements.txt` both exit 0 on Python 3.12.13.
+- ✅ Pytest regression: 48/49 pass (no new failures).
 - ✅ Registration: verified working end-to-end on preview (POST /api/auth/register → 200 with JWT). No code change needed.
 - ✅ Demo Accounts section: already removed from /login (confirmed in DOM by testing agent).
 - ✅ "Made with Emergent" watermark: removed from index.html (no posthog, no badge, no emergent.sh link).
