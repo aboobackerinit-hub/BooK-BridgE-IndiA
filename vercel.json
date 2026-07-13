@@ -10,7 +10,6 @@
   "framework": null,
   "functions": {
     "api/index.py": {
-      "runtime": "@vercel/python@3.2.1",
       "maxDuration": 30,
       "includeFiles": "backend/**"
     }
