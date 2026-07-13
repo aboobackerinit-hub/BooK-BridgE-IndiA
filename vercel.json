@@ -3,6 +3,12 @@
   "buildCommand": "cd frontend && yarn install && CI=false yarn build",
   "outputDirectory": "frontend/build",
   "framework": null,
+  "build": {
+    "env": {
+      "VERCEL_PYTHON_PACKAGE_MANAGER": "pip",
+      "PIP_DISABLE_PIP_VERSION_CHECK": "1"
+    }
+  },
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
