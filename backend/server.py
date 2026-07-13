@@ -428,7 +428,7 @@ def list_users(q: Optional[str] = None, role: Optional[str] = None):
 
 @api.put("/users/me")
 def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
-    update = {k: v for k, v in body.dict().items() if v is not None}
+    update = {k: v for k, v in body.model_dump().items() if v is not None}
     if update.get("avatar_url"):
         update["avatar_url"] = upload_data_url_to_storage(update["avatar_url"], prefix="avatars")
     if update:
@@ -485,7 +485,7 @@ def list_blocked(user: dict = Depends(get_current_user)):
 def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
     full = get_user_by_id(user["id"])
     prefs = full.get("email_prefs") or {}
-    for k, v in body.dict().items():
+    for k, v in body.model_dump().items():
         if v is not None:
             prefs[k] = v
     sb.table("users").update({"email_prefs": prefs}).eq("id", user["id"]).execute()
@@ -529,7 +529,7 @@ def get_book(book_id: str):
 
 @api.post("/books")
 def create_book(body: BookIn, user: dict = Depends(get_current_user)):
-    row = body.dict()
+    row = body.model_dump()
     row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
     row["owner_id"] = user["id"]
     row["owner_role"] = user["role"]
@@ -546,7 +546,7 @@ def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_use
     b = res.data[0]
     if b["owner_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
-    row = body.dict()
+    row = body.model_dump()
     row["image_url"] = upload_data_url_to_storage(row.get("image_url") or "", prefix="books")
     sb.table("books").update(row).eq("id", book_id).execute()
     return sb.table("books").select("*").eq("id", book_id).limit(1).execute().data[0]
