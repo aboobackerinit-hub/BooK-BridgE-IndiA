@@ -116,3 +116,28 @@ See `/app/memory/test_credentials.md`
 - Import repo in Vercel → set env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS)
 - Leave REACT_APP_BACKEND_URL blank (same-origin) or set to Vercel URL
 - Deploy — Vercel auto-detects vercel.json and builds frontend + Python function together
+
+## Iteration 8 (2026-02) — Bug batch + Vercel deploy hardening
+- ✅ Registration: verified working end-to-end on preview (POST /api/auth/register → 200 with JWT). No code change needed.
+- ✅ Demo Accounts section: already removed from /login (confirmed in DOM by testing agent).
+- ✅ "Made with Emergent" watermark: removed from index.html (no posthog, no badge, no emergent.sh link).
+- ✅ Reviews composer: replaced free-text image URL input with real file-upload flow (hidden `<input type=file>` + FileReader + canvas resize @ 1200px + Add photo button + preview + Remove). Backend already uploads base64 dataURLs to Supabase Storage bucket 'images'.
+- ✅ Vercel `uv pip install` fix: removed duplicate root /app/requirements.txt; pinned exact versions in /app/api/requirements.txt (fastapi==0.116.1, pydantic==2.11.0, PyJWT==2.12.1, cryptography==44.0.1, bcrypt==4.1.3, supabase==2.16.0, python-dotenv==1.1.0, email-validator==2.3.0). Verified `uv pip install -r requirements.txt` succeeds on Python 3.12.13 locally.
+- ✅ Testing agent: 48/49 backend tests pass, all 4 P0 frontend bug-fix scenarios pass.
+
+## Deployment guide (Vercel)
+1. Click **"Save to GitHub"** button in Emergent chat input to push code to main.
+2. In Vercel dashboard → your project → Settings → Environment Variables, ensure these are set (Production):
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CORS_ORIGINS` (comma-separated or `*`)
+3. Trigger a redeploy (Deployments → ⋯ → Redeploy).
+4. Verify: open `<your-vercel-url>/api/health` — should return `{"ok":true,"db_reachable":true,...}`.
+5. Test registration on the live site.
+
+## Backlog / Future
+- P1: Real payments (Stripe/Razorpay)
+- P1: Email OTP registration via Resend
+- P1: WebSocket / Supabase Realtime chat instead of polling
+- P2: Push notifications, Publisher analytics charts, Advanced admin moderation, Book-level reviews (currently only feed posts)
+- P3: (nit) GET /api/books/{invalid-uuid} returns 500 instead of 404 — wrap lookup in try/except
+- P3: Split server.py (879 lines) into routers/{auth,books,cart,orders,posts,chat,admin}.py
