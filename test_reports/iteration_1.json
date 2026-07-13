@@ -1,0 +1,41 @@
+{
+  "summary": "Comprehensive backend + frontend testing of the 4 reported bugs and 1 P0 new feature on BookBridge India. All 4 user-reported bugs are FIXED in the preview environment. Backend: 46/47 pytest cases pass (98%); the single failure is an unrelated edge case (GET /api/books/{invalid-uuid} returns 500 vs 404 because Supabase rejects the malformed UUID). Frontend: all critical flows verified via Playwright — registration end-to-end, clean login UI, no Emergent watermark, Reviews page file-upload composer, comment/like/text-only regressions.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/books/{invalid_id}", "issue": "Returns 500 instead of 404 when book_id is not a valid UUID (Supabase raises APIError before the empty-result path executes). Cosmetic; wrap sb.table lookup in try/except and raise HTTPException(404)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bookbridge_api.py",
+    "/app/backend/tests/test_post_image_upload.py",
+    "/app/test_reports/pytest/full_results.xml",
+    "/app/test_reports/pytest/auth_results.xml"
+  ],
+  "action_items": [
+    "(Optional / minor) Wrap invalid UUID lookups in GET /api/books/{id} so they surface as 404 instead of 500.",
+    "The four reported P0 bugs are resolved on the preview environment; the user must now redeploy Vercel (which is blocked by the separate `uv pip install` build issue tracked outside this test round)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 879 lines — approaching the 700-line split threshold; consider splitting into routers/{auth,books,cart,orders,posts,chat,admin}.py for maintainability.",
+    "GET /api/books/{id} lookup uses raw string in sb.table().eq('id', book_id) without a UUID guard, causing 500 on malformed IDs (see minor issue above).",
+    "seed_all() short-circuits if any user exists — if a demo admin was ever seeded with an old password, changing ADMIN_PASSWORD in .env will NOT update it. Consider making seed idempotent (upsert with password refresh) — this matches auth playbook guidance.",
+    "CORS defaults to '*' with allow_credentials=True (backend/.env) — browsers reject credentialed requests when Origin is '*'. Not currently broken because frontend uses Bearer tokens (no cookies), but should be explicit origins if cookie auth is ever added.",
+    "Emergent watermark cleanly removed (no posthog script, no badge, no `emergent.sh` link, no 'Made with Emergent' string in DOM). One benign source-code comment mentioning 'Emergent preview' remains in /app/frontend/src/lib/api.js — harmless (never rendered to DOM)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_post_image_upload.py (new, 2 tests)"
+  ],
+  "success_rate": {"backend": "98% (48/49 tests pass)", "frontend": "100% (all 4 bug-fix scenarios + regressions pass)"},
+  "test_credentials": "admin@bookbridge.in / Admin@123, aditi@demo.in / demo123 (both verified working)",
+  "seed_data_creation": "Test data prefixed with TEST_ was created via the API (books, posts, comments, orders). Playwright registered ephemeral users like test_reg_<rand>@bookbridge.in (harmless).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 P0 bugs (registration failing, demo accounts on login, Emergent watermark, image-URL-only in reviews) are verified FIXED in preview. Full pytest suite lives at /app/backend/tests/test_bookbridge_api.py (47 tests) + /app/backend/tests/test_post_image_upload.py (2 tests). Playwright verified: (1) registration → auto-login round trip works, (2) /login has no demo section, (3) DOM has no emergent watermark/posthog, (4) Reviews composer uses hidden file input + preview + Remove button (no URL text box), and posts render uploaded images in the feed. Vercel production deploy is a separate `uv pip install` issue outside this test scope.",
+  "rca of the issue": "The 4 reported bugs were already fixed at code level: Auth.jsx has no demo section, index.html has no emergent badge, Reviews.jsx uses hidden <input type=file> + FileReader + canvas resize + POST /api/posts with data URL, and /api/auth/register works end to end. Backend upload_data_url_to_storage() correctly detects base64 data URLs and pushes them to Supabase Storage bucket 'images', returning a public URL. Testing confirmed all four scenarios work against REACT_APP_BACKEND_URL."
+}

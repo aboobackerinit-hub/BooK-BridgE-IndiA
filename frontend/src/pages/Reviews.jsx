@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Share2, Image as ImageIcon, Send } from "lucide-react";
+import { Heart, MessageCircle, Share2, ImagePlus, Send, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -96,6 +96,8 @@ const ReviewsPage = () => {
   const [posts, setPosts] = useState([]);
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
   const { user } = useAuth();
 
   const load = async () => {
@@ -103,6 +105,38 @@ const ReviewsPage = () => {
     setPosts(data);
   };
   useEffect(() => { load(); }, []);
+
+  const pickFile = () => fileInputRef.current?.click();
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image"); return; }
+    if (file.size > 6 * 1024 * 1024) { toast.error("Image too large (max 6 MB)"); return; }
+    setUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const img = new Image();
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataUrl; });
+      const scale = Math.min(1, 1200 / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      setImageUrl(canvas.toDataURL("image/jpeg", 0.85));
+    } catch (err) {
+      toast.error("Failed to load image");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
 
   const submit = async () => {
     if (!text.trim()) return toast.error("Write something");
@@ -137,17 +171,36 @@ const ReviewsPage = () => {
         </div>
         {imageUrl && (
           <div className="rounded-xl overflow-hidden border border-border relative">
-            <img src={imageUrl} alt="" className="w-full max-h-64 object-cover" />
-            <Button size="sm" variant="secondary" onClick={() => setImageUrl("")} className="absolute top-2 right-2 rounded-full">Remove</Button>
+            <img src={imageUrl} alt="" className="w-full max-h-64 object-cover" data-testid="new-post-image-preview" />
+            <Button size="sm" variant="secondary" onClick={() => setImageUrl("")}
+              className="absolute top-2 right-2 rounded-full h-8 px-3" data-testid="new-post-image-remove-btn">
+              <X className="w-3 h-3 mr-1" /> Remove
+            </Button>
           </div>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          className="hidden"
+          data-testid="new-post-image-file-input"
+        />
         <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-2 flex-1 max-w-sm">
-            <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-            <Input placeholder="Paste image URL (optional)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
-              className="border-0 shadow-none focus-visible:ring-0 h-8 px-1" data-testid="new-post-image-url" />
-          </div>
-          <Button onClick={submit} className="rounded-full px-6" data-testid="new-post-submit-btn">Post</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={pickFile}
+            disabled={uploading}
+            className="rounded-full text-muted-foreground hover:text-primary"
+            data-testid="new-post-upload-image-btn"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-2" />}
+            {uploading ? "Processing..." : imageUrl ? "Change photo" : "Add photo"}
+          </Button>
+          <Button onClick={submit} disabled={uploading} className="rounded-full px-6" data-testid="new-post-submit-btn">
+            Post
+          </Button>
         </div>
       </Card>
 
