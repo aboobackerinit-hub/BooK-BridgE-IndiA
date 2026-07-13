@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 from pathlib import Path
-# Load .env for local dev; Vercel injects env vars natively.
+# Load .env and .env.local for local dev; Vercel injects env vars natively.
 load_dotenv(Path(__file__).parent / '.env')
+load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from starlette.middleware.cors import CORSMiddleware
@@ -24,9 +25,16 @@ import jwt
 from datetime import datetime, timezone, timedelta
 
 # ---------- Setup ----------
-SUPABASE_URL = os.environ.get("SUPABASE_URL") or ""
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
+service_role = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+if not service_role or "your-" in service_role:
+    service_role = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY") or ""
+SUPABASE_SERVICE_ROLE_KEY = service_role
 JWT_SECRET = os.environ.get("JWT_SECRET") or "dev-secret-please-set-in-env"
+
+# Propagate fallbacks back to environment variables so that functions like health() can report them correctly
+os.environ["SUPABASE_URL"] = SUPABASE_URL
+os.environ["SUPABASE_SERVICE_ROLE_KEY"] = SUPABASE_SERVICE_ROLE_KEY
 
 # Fail loudly at REQUEST time, not import time — otherwise Vercel deploy hangs.
 sb: Optional[Client] = None
