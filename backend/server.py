@@ -6,11 +6,13 @@ import typing
 if hasattr(typing, "ForwardRef"):
     _orig_evaluate = typing.ForwardRef._evaluate
     def _patched_evaluate(self, globalns, localns, *args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], set) and not kwargs:
-            import sys
-            if sys.version_info >= (3, 14) or sys.version_info >= (3, 13):
+        try:
+            return _orig_evaluate(self, globalns, localns, *args, **kwargs)
+        except TypeError as e:
+            if "recursive_guard" in str(e) and args:
+                # Python 3.12+ (or 3.13+) might require type_params as positional and recursive_guard as keyword
                 return _orig_evaluate(self, globalns, localns, (), recursive_guard=args[0])
-        return _orig_evaluate(self, globalns, localns, *args, **kwargs)
+            raise e
     typing.ForwardRef._evaluate = _patched_evaluate
 
 from dotenv import load_dotenv
