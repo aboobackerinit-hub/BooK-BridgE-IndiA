@@ -1,5 +1,4 @@
 import traceback
-from fastapi import FastAPI
 
 try:
     import typing
@@ -935,8 +934,18 @@ try:
     )
     
 except Exception as e:
-    app = FastAPI()
     err = traceback.format_exc()
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
-    def root(path: str):
-        return {"error": "BOOT_CRASH", "traceback": err}
+    
+    async def app(scope, receive, send):
+        assert scope['type'] == 'http'
+        await send({
+            'type': 'http.response.start',
+            'status': 500,
+            'headers': [
+                (b'content-type', b'text/plain'),
+            ]
+        })
+        await send({
+            'type': 'http.response.body',
+            'body': f"BOOT CRASH CAUGHT BY ASGI WRAPPER:\n{err}".encode('utf-8'),
+        })
