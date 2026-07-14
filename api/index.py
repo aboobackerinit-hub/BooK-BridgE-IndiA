@@ -1,11 +1,10 @@
-from fastapi import FastAPI
-app = FastAPI()
+import os
+import sys
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "version": "test"}
+# Add the root directory and the backend directory to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
-async def catch_all(path: str):
-    return {"message": f"Hello from test API wrapper on {path}"}
+# Import the actual FastAPI app
+from backend.server import app
 
