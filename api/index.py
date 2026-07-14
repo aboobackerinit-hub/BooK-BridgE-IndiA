@@ -1,10 +1,14 @@
-from fastapi import FastAPI
-app = FastAPI()
+import json
 
-@app.get("/api/health")
-def health():
-    return {"ok": True, "message": "Dummy health check from api/index.py"}
+async def app(scope, receive, send):
+    assert scope['type'] == 'http'
+    await send({
+        'type': 'http.response.start',
+        'status': 200,
+        'headers': [(b'content-type', b'application/json')]
+    })
+    await send({
+        'type': 'http.response.body',
+        'body': json.dumps({"ok": True, "message": "Raw ASGI!"}).encode('utf-8')
+    })
 
-@app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE"])
-def catch_all(path_name: str):
-    return {"error": "Fallback caught in api/index.py", "path": path_name}
