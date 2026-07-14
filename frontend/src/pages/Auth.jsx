@@ -115,6 +115,8 @@ export const RegisterPage = () => {
       if (err.response?.data?.detail) {
         if (typeof err.response.data.detail === "string") msg = err.response.data.detail;
         else if (Array.isArray(err.response.data.detail)) msg = err.response.data.detail[0].msg;
+      } else if (err.message) {
+        msg = `Registration failed: ${err.message}`;
       }
       toast.error(msg);
     } finally { setLoading(false); }
