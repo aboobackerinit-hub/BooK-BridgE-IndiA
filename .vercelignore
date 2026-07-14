@@ -12,3 +12,5 @@ supabase_schema.sql
 auth_testing.md
 VERCEL_DEPLOY.md
 design_guidelines.json
+.venv
+.pytest_cache
