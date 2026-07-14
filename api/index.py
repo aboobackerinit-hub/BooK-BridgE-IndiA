@@ -1,11 +1,5 @@
-import sys
 import traceback
-from pathlib import Path
 import json
-
-# Add backend directory to path so it can be imported
-BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
-sys.path.insert(0, str(BACKEND_DIR))
 
 def build_error_app(err_msg, tb_msg):
     async def error_app(scope, receive, send):
@@ -34,7 +28,7 @@ def build_error_app(err_msg, tb_msg):
     return error_app
 
 try:
-    from server import app as real_app  # type: ignore
+    from backend.server import app as real_app  # type: ignore
     app = real_app
 except Exception as e:
     err_msg = str(e)
