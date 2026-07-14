@@ -68,7 +68,7 @@ JWT_EXPIRE_HOURS = 24 * 7  # 7 days
 BUCKET = "images"
 
 app = FastAPI(title="BookBridge India API (Supabase)")
-api = APIRouter(prefix="/api")
+api = APIRouter()
 
 
 @api.get("/health")
@@ -920,6 +920,7 @@ def dashboard_overview(user: dict = Depends(get_current_user)):
 
 
 # ---------- Register ----------
+app.include_router(api, prefix="/api")
 app.include_router(api)
 
 app.add_middleware(
