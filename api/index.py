@@ -1,17 +1,16 @@
 import traceback
 import json
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from fastapi.requests import Request
-import os
 import sys
+import os
 
-# Define the FastAPI app FIRST so Vercel always finds it.
-app = FastAPI(title="BookBridge India API (Fallback Mode)")
+# Define the global ASGI app that will handle everything.
+# We will do imports INSIDE this function (or lazily) so that if they fail,
+# we can return the error directly to the browser.
+_real_app = None
+_boot_error = None
 
 try:
     import typing
-    
     # Pydantic v1.10.x monkeypatch for Python 3.13 and 3.14
     if hasattr(typing, "ForwardRef"):
         _orig_evaluate = typing.ForwardRef._evaluate
@@ -23,14 +22,11 @@ try:
                     return _orig_evaluate(self, globalns, localns, (), recursive_guard=args[0])
                 raise e
         typing.ForwardRef._evaluate = _patched_evaluate
-    
-    from dotenv import load_dotenv
-    from pathlib import Path
-    load_dotenv(Path(__file__).parent / '.env')
-    load_dotenv(Path(__file__).parent.parent / '.env.local')
-    
-    from fastapi import APIRouter, HTTPException, Depends
+        
+    from fastapi import FastAPI, APIRouter, HTTPException, Depends
     from starlette.middleware.cors import CORSMiddleware
+    from fastapi.requests import Request
+    from fastapi.responses import JSONResponse
     from supabase import create_client, Client
     try:
         from postgrest.exceptions import APIError  # noqa
@@ -48,7 +44,12 @@ try:
     import secrets
     import jwt
     from datetime import datetime, timezone, timedelta
-    
+    from dotenv import load_dotenv
+    from pathlib import Path
+
+    load_dotenv(Path(__file__).parent / '.env')
+    load_dotenv(Path(__file__).parent.parent / '.env.local')
+
     # ---------- Setup ----------
     SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
     service_role = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
@@ -65,13 +66,13 @@ try:
         try:
             sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         except Exception as _e:
-            logging.error(f"Supabase init failed: {_e}")
-    
+            pass # logging.error fails if logging isn't set up
+            
     JWT_ALG = "HS256"
     JWT_EXPIRE_HOURS = 24 * 7  # 7 days
     BUCKET = "images"
     
-    app.title = "BookBridge India API (Supabase)"
+    fastapi_app = FastAPI(title="BookBridge India API (Supabase)")
     api = APIRouter(prefix="/api")
     
     @api.get("/health")
@@ -92,9 +93,6 @@ try:
             info["db_reachable"] = False
             info["db_error"] = str(e)[:200]
         return info
-    
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("bookbridge")
     
     # ---------- Helpers ----------
     def hash_password(pw: str) -> str:
@@ -180,8 +178,7 @@ try:
                 file_options={"content-type": mime, "cache-control": "3600", "upsert": "false"},
             )
             return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
-        except Exception as e:
-            logger.warning(f"Storage upload failed: {e}; keeping data URL")
+        except Exception:
             return data_url
     
     # ---------- Models ----------
@@ -253,64 +250,6 @@ try:
         email_messages: Optional[bool] = None
         email_follows: Optional[bool] = None
         email_marketing: Optional[bool] = None
-    
-    # ---------- Seed ----------
-    def seed_all():
-        try:
-            existing = sb.table("users").select("id").limit(1).execute()
-            if existing.data:
-                logger.info("Data already seeded, skipping.")
-                return
-        except APIError as e:
-            logger.error(f"Schema not ready: {e}")
-            return
-        admin_email = os.environ.get("ADMIN_EMAIL", "admin@bookbridge.in")
-        admin_password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
-        users_data = [
-            {"email": admin_email, "name": "BookBridge Admin", "role": "admin", "password": admin_password, "bbid": "BB-ADMIN000"},
-            {"email": "priya@demo.in", "name": "Priya Sharma", "role": "store_owner", "password": "demo123"},
-            {"email": "raj@demo.in", "name": "Raj Publications", "role": "publisher", "password": "demo123"},
-            {"email": "aditi@demo.in", "name": "Aditi Reader", "role": "user", "password": "demo123"},
-        ]
-        inserted_users = {}
-        for u in users_data:
-            row = {
-                "email": u["email"], "password_hash": hash_password(u["password"]),
-                "name": u["name"], "role": u["role"], "bbid": u.get("bbid") or gen_bbid(u["name"]),
-                "bio": f"Demo {u['role']} account" if u["role"] != "admin" else "System Administrator",
-                "address": "Mumbai, India" if u["role"] != "admin" else "",
-                "phone": "+91 90000 00000" if u["role"] != "admin" else "",
-            }
-            res = sb.table("users").insert(row).execute()
-            inserted_users[u["role"]] = res.data[0]["id"]
-        samples = [
-            {"title": "The White Tiger", "author": "Aravind Adiga", "price": 299, "category": "Fiction", "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400", "description": "A darkly humorous novel about class struggle in modern India.", "role": "publisher"},
-            {"title": "Midnight's Children", "author": "Salman Rushdie", "price": 450, "category": "Fiction", "image_url": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400", "description": "The story of children born at the moment India gained independence.", "role": "publisher"},
-        ]
-        books = [{
-            "title": b["title"], "author": b["author"], "description": b["description"],
-            "price": b["price"], "stock": 20, "category": b["category"], "condition": "New",
-            "image_url": b["image_url"], "edition": "1st", "language": "English",
-            "owner_id": inserted_users[b["role"]], "owner_role": b["role"], "featured": random.choice([True, False]),
-        } for b in samples]
-        sb.table("books").insert(books).execute()
-        aditi = inserted_users["user"]
-        posts_data = [
-            {"user_id": aditi, "text": "Just finished 'The White Tiger' — an unflinching, brilliant read.", "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600"},
-            {"user_id": aditi, "text": "Started 'Midnight's Children' today. Rushdie's prose is magic.", "image_url": ""},
-        ]
-        sb.table("posts").insert(posts_data).execute()
-        logger.info("Seeded users, books, posts.")
-    
-    @app.on_event("startup")
-    def startup():
-        if os.environ.get("VERCEL") == "1":
-            logger.info("Running on Vercel, skipping automatic database seed.")
-            return
-        try:
-            seed_all()
-        except Exception as e:
-            logger.error(f"Seed error: {e}")
     
     # ---------- Auth ----------
     @api.post("/auth/register")
@@ -798,18 +737,31 @@ try:
                     revenue += float(it.get("price") or 0) * (it.get("quantity") or 0)
         return {"total_books": my_books, "total_orders": len(my_orders), "revenue": revenue}
     
-    app.include_router(api)
-    
-    app.add_middleware(
+    fastapi_app.include_router(api)
+    fastapi_app.add_middleware(
         CORSMiddleware,
         allow_credentials=True,
         allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    _real_app = fastapi_app
 
 except Exception as e:
-    err = traceback.format_exc()
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-    def catch_all(request: Request):
-        return JSONResponse(status_code=500, content={"error": "BOOT_CRASH", "traceback": err})
+    _boot_error = traceback.format_exc()
+
+async def app(scope, receive, send):
+    if _boot_error:
+        if scope["type"] == "http":
+            await send({
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [(b"content-type", b"application/json")]
+            })
+            await send({
+                "type": "http.response.body",
+                "body": json.dumps({"error": "BOOT_CRASH", "traceback": _boot_error}).encode("utf-8")
+            })
+        return
+    else:
+        await _real_app(scope, receive, send)
