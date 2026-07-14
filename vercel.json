@@ -11,14 +11,8 @@
     }
   },
   "framework": null,
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "backend/**"
-    }
-  },
   "rewrites": [
-    { "source": "/api", "destination": "/api" },
-    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ],
   "headers": [
