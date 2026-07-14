@@ -1,11 +1,10 @@
-from fastapi import FastAPI
-app = FastAPI()
+from http.server import BaseHTTPRequestHandler
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "version": "test"}
-
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
-async def catch_all(path: str):
-    return {"message": f"Hello from test API wrapper on {path}"}
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type','text/plain')
+        self.end_headers()
+        self.wfile.write('Hello, world from pure Python!'.encode('utf-8'))
+        return
 
