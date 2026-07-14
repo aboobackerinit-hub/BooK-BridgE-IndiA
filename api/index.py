@@ -1,17 +1,9 @@
-from fastapi import FastAPI, APIRouter
-from fastapi.responses import JSONResponse
 import sys
+import os
 
-app = FastAPI(title="BookBridge Debug")
-api = APIRouter()
+# Add the root directory and the backend directory to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-@api.get("/health")
-def health():
-    return {"ok": True, "python_path": sys.path}
-
-@api.post("/auth/register")
-def register():
-    return JSONResponse(status_code=500, content={"error": "Still debugging Vercel imports!"})
-
-app.include_router(api, prefix="/api")
-app.include_router(api)
+# Import the actual FastAPI app
+from backend.server import app
