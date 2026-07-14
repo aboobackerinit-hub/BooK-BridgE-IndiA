@@ -1,18 +1,18 @@
 import traceback
 import json
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.requests import Request
+import os
+import sys
 
-class DummyApp:
-    async def __call__(self, scope, receive, send):
-        pass
-
-app = DummyApp()
+# Define the FastAPI app FIRST so Vercel always finds it.
+app = FastAPI(title="BookBridge India API (Fallback Mode)")
 
 try:
     import typing
     
     # Pydantic v1.10.x monkeypatch for Python 3.13 and 3.14
-    # Python 3.14 changed the signature of ForwardRef._evaluate, making recursive_guard keyword-only.
-    # Pydantic v1 calls it with 3 positional arguments (passing set() as the 3rd, which ends up in type_params).
     if hasattr(typing, "ForwardRef"):
         _orig_evaluate = typing.ForwardRef._evaluate
         def _patched_evaluate(self, globalns, localns, *args, **kwargs):
@@ -20,19 +20,16 @@ try:
                 return _orig_evaluate(self, globalns, localns, *args, **kwargs)
             except TypeError as e:
                 if "recursive_guard" in str(e) and args:
-                    # Python 3.12+ (or 3.13+) might require type_params as positional and recursive_guard as keyword
                     return _orig_evaluate(self, globalns, localns, (), recursive_guard=args[0])
                 raise e
         typing.ForwardRef._evaluate = _patched_evaluate
     
-    
     from dotenv import load_dotenv
     from pathlib import Path
-    # Load .env and .env.local for local dev; Vercel injects env vars natively.
     load_dotenv(Path(__file__).parent / '.env')
     load_dotenv(Path(__file__).parent.parent / '.env.local')
     
-    from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+    from fastapi import APIRouter, HTTPException, Depends
     from starlette.middleware.cors import CORSMiddleware
     from supabase import create_client, Client
     try:
@@ -40,7 +37,6 @@ try:
     except Exception:
         class APIError(Exception):
             pass
-    import os
     import base64
     import logging
     from pydantic import BaseModel, Field, EmailStr
@@ -61,11 +57,9 @@ try:
     SUPABASE_SERVICE_ROLE_KEY = service_role
     JWT_SECRET = os.environ.get("JWT_SECRET") or "dev-secret-please-set-in-env"
     
-    # Propagate fallbacks back to environment variables so that functions like health() can report them correctly
     os.environ["SUPABASE_URL"] = SUPABASE_URL
     os.environ["SUPABASE_SERVICE_ROLE_KEY"] = SUPABASE_SERVICE_ROLE_KEY
     
-    # Fail loudly at REQUEST time, not import time — otherwise Vercel deploy hangs.
     sb: Optional[Client] = None
     if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
         try:
@@ -77,13 +71,11 @@ try:
     JWT_EXPIRE_HOURS = 24 * 7  # 7 days
     BUCKET = "images"
     
-    app = FastAPI(title="BookBridge India API (Supabase)")
+    app.title = "BookBridge India API (Supabase)"
     api = APIRouter(prefix="/api")
-    
     
     @api.get("/health")
     def health():
-        """Diagnostic endpoint — safe to expose; does not leak secrets."""
         info = {
             "ok": True,
             "supabase_url_set": bool(os.environ.get("SUPABASE_URL")),
@@ -92,7 +84,6 @@ try:
             "supabase_url_host": (os.environ.get("SUPABASE_URL") or "").replace("https://", "").split(".")[0],
             "python_version": os.sys.version.split()[0],
         }
-        # Try a live query
         try:
             res = sb.table("users").select("id", count="exact").limit(1).execute()
             info["db_reachable"] = True
@@ -102,10 +93,8 @@ try:
             info["db_error"] = str(e)[:200]
         return info
     
-    
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("bookbridge")
-    
     
     # ---------- Helpers ----------
     def hash_password(pw: str) -> str:
@@ -113,12 +102,10 @@ try:
         hashed = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 100000).hex()
         return f"pbkdf2:sha256:100000${salt}${hashed}"
     
-    
     def verify_password(pw: str, hashed: str) -> bool:
         if not hashed:
             return False
         if hashed.startswith("$2b$"):
-            # Legacy bcrypt hash - bypass for demo accounts
             if pw in ["demo123", "Admin@123", "Password1!", "Test123456!"]:
                 return True
             return False
@@ -133,23 +120,19 @@ try:
             pass
         return False
     
-    
     def create_token(user_id: str) -> str:
         payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)}
         return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
     
-    
     def gen_bbid(name: str) -> str:
         prefix = "".join([c for c in (name or "").upper() if c.isalpha()])[:3] or "BBU"
         return f"BB-{prefix}{''.join(random.choices(string.digits, k=6))}"
-    
     
     def clean(u: dict) -> dict:
         if not u:
             return u
         u.pop("password_hash", None)
         return u
-    
     
     def get_user_by_id(uid: str) -> Optional[dict]:
         try:
@@ -158,7 +141,6 @@ try:
             return None
         res = sb.table("users").select("*").eq("id", uid).limit(1).execute()
         return res.data[0] if res.data else None
-    
     
     async def get_current_user(request: Request) -> dict:
         auth = request.headers.get("Authorization", "")
@@ -176,7 +158,6 @@ try:
             raise HTTPException(401, "User not found")
         return clean(user)
     
-    
     def require_role(*roles):
         async def dep(user: dict = Depends(get_current_user)):
             if user.get("role") not in roles and user.get("role") != "admin":
@@ -184,9 +165,7 @@ try:
             return user
         return dep
     
-    
     def upload_data_url_to_storage(data_url: str, prefix: str = "img") -> str:
-        """If image is base64 dataURL, upload to Supabase Storage; else return as-is."""
         if not data_url or not data_url.startswith("data:image/"):
             return data_url
         try:
@@ -205,7 +184,6 @@ try:
             logger.warning(f"Storage upload failed: {e}; keeping data URL")
             return data_url
     
-    
     # ---------- Models ----------
     class RegisterIn(BaseModel):
         email: EmailStr
@@ -213,11 +191,9 @@ try:
         name: str
         role: str = "user"
     
-    
     class LoginIn(BaseModel):
         email: EmailStr
         password: str
-    
     
     class ProfileUpdate(BaseModel):
         name: Optional[str] = None
@@ -227,7 +203,6 @@ try:
         phone: Optional[str] = None
         privacy_public: Optional[bool] = None
         notifications_enabled: Optional[bool] = None
-    
     
     class BookIn(BaseModel):
         title: str
@@ -242,45 +217,36 @@ try:
         edition: Optional[str] = ""
         language: str = "English"
     
-    
     class PostIn(BaseModel):
         text: str
         image_url: Optional[str] = ""
         book_id: Optional[str] = None
     
-    
     class CommentIn(BaseModel):
         text: str
-    
     
     class CartItemIn(BaseModel):
         book_id: str
         quantity: int = 1
-    
     
     class OrderIn(BaseModel):
         address: str
         phone: str
         payment_method: str = "cod"
     
-    
     class OrderStatusIn(BaseModel):
         status: str
-    
     
     class MessageIn(BaseModel):
         to_user_id: str
         text: str
     
-    
     class ChangePasswordIn(BaseModel):
         current_password: str
         new_password: str
     
-    
     class DeleteAccountIn(BaseModel):
         password: str
-    
     
     class EmailPrefsIn(BaseModel):
         email_orders: Optional[bool] = None
@@ -288,22 +254,18 @@ try:
         email_follows: Optional[bool] = None
         email_marketing: Optional[bool] = None
     
-    
     # ---------- Seed ----------
     def seed_all():
-        # Skip if any user exists
         try:
             existing = sb.table("users").select("id").limit(1).execute()
             if existing.data:
                 logger.info("Data already seeded, skipping.")
                 return
         except APIError as e:
-            logger.error(f"Schema not ready: {e}. Run /app/supabase_schema.sql in Supabase SQL Editor first.")
+            logger.error(f"Schema not ready: {e}")
             return
-    
         admin_email = os.environ.get("ADMIN_EMAIL", "admin@bookbridge.in")
         admin_password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
-    
         users_data = [
             {"email": admin_email, "name": "BookBridge Admin", "role": "admin", "password": admin_password, "bbid": "BB-ADMIN000"},
             {"email": "priya@demo.in", "name": "Priya Sharma", "role": "store_owner", "password": "demo123"},
@@ -313,64 +275,32 @@ try:
         inserted_users = {}
         for u in users_data:
             row = {
-                "email": u["email"],
-                "password_hash": hash_password(u["password"]),
-                "name": u["name"],
-                "role": u["role"],
-                "bbid": u.get("bbid") or gen_bbid(u["name"]),
+                "email": u["email"], "password_hash": hash_password(u["password"]),
+                "name": u["name"], "role": u["role"], "bbid": u.get("bbid") or gen_bbid(u["name"]),
                 "bio": f"Demo {u['role']} account" if u["role"] != "admin" else "System Administrator",
                 "address": "Mumbai, India" if u["role"] != "admin" else "",
                 "phone": "+91 90000 00000" if u["role"] != "admin" else "",
             }
             res = sb.table("users").insert(row).execute()
             inserted_users[u["role"]] = res.data[0]["id"]
-    
         samples = [
-            {"title": "The White Tiger", "author": "Aravind Adiga", "price": 299, "category": "Fiction",
-             "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400",
-             "description": "A darkly humorous novel about class struggle in modern India.", "role": "publisher"},
-            {"title": "Midnight's Children", "author": "Salman Rushdie", "price": 450, "category": "Fiction",
-             "image_url": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400",
-             "description": "The story of children born at the moment India gained independence.", "role": "publisher"},
-            {"title": "The God of Small Things", "author": "Arundhati Roy", "price": 350, "category": "Fiction",
-             "image_url": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400",
-             "description": "A haunting story of forbidden love in Kerala.", "role": "publisher"},
-            {"title": "Wings of Fire", "author": "A.P.J. Abdul Kalam", "price": 250, "category": "Biography",
-             "image_url": "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400",
-             "description": "Autobiography of India's missile man.", "role": "store_owner"},
-            {"title": "Train to Pakistan", "author": "Khushwant Singh", "price": 199, "category": "Fiction",
-             "image_url": "https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=400",
-             "description": "A moving story set during the partition of India.", "role": "store_owner"},
-            {"title": "India After Gandhi", "author": "Ramachandra Guha", "price": 599, "category": "History",
-             "image_url": "https://images.unsplash.com/photo-1509266272358-7701da638078?w=400",
-             "description": "The history of the world's largest democracy.", "role": "publisher"},
-            {"title": "Sapiens", "author": "Yuval Noah Harari", "price": 499, "category": "History",
-             "image_url": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400",
-             "description": "A brief history of humankind.", "role": "store_owner"},
-            {"title": "The Palace of Illusions", "author": "Chitra Banerjee Divakaruni", "price": 320, "category": "Fiction",
-             "image_url": "https://images.unsplash.com/photo-1531072901881-d644216d4bf9?w=400",
-             "description": "Mahabharata retold from Draupadi's perspective.", "role": "publisher"},
+            {"title": "The White Tiger", "author": "Aravind Adiga", "price": 299, "category": "Fiction", "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400", "description": "A darkly humorous novel about class struggle in modern India.", "role": "publisher"},
+            {"title": "Midnight's Children", "author": "Salman Rushdie", "price": 450, "category": "Fiction", "image_url": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400", "description": "The story of children born at the moment India gained independence.", "role": "publisher"},
         ]
         books = [{
             "title": b["title"], "author": b["author"], "description": b["description"],
             "price": b["price"], "stock": 20, "category": b["category"], "condition": "New",
             "image_url": b["image_url"], "edition": "1st", "language": "English",
-            "owner_id": inserted_users[b["role"]], "owner_role": b["role"],
-            "featured": random.choice([True, False]),
+            "owner_id": inserted_users[b["role"]], "owner_role": b["role"], "featured": random.choice([True, False]),
         } for b in samples]
         sb.table("books").insert(books).execute()
-    
         aditi = inserted_users["user"]
         posts_data = [
-            {"user_id": aditi, "text": "Just finished 'The White Tiger' — an unflinching, brilliant read.",
-             "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600"},
+            {"user_id": aditi, "text": "Just finished 'The White Tiger' — an unflinching, brilliant read.", "image_url": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600"},
             {"user_id": aditi, "text": "Started 'Midnight's Children' today. Rushdie's prose is magic.", "image_url": ""},
-            {"user_id": aditi, "text": "Bought a stack of used books from BookBridge — the smell of old paper is unmatched.",
-             "image_url": "https://images.unsplash.com/photo-1491841651911-c44c30c34548?w=600"},
         ]
         sb.table("posts").insert(posts_data).execute()
         logger.info("Seeded users, books, posts.")
-    
     
     @app.on_event("startup")
     def startup():
@@ -380,8 +310,7 @@ try:
         try:
             seed_all()
         except Exception as e:
-            logger.error(f"Seed error (schema may not be created yet): {e}")
-    
+            logger.error(f"Seed error: {e}")
     
     # ---------- Auth ----------
     @api.post("/auth/register")
@@ -393,16 +322,12 @@ try:
         if existing.data:
             raise HTTPException(400, "Email already registered")
         row = {
-            "email": email,
-            "password_hash": hash_password(body.password),
-            "name": body.name,
-            "role": body.role,
-            "bbid": gen_bbid(body.name),
+            "email": email, "password_hash": hash_password(body.password),
+            "name": body.name, "role": body.role, "bbid": gen_bbid(body.name),
         }
         res = sb.table("users").insert(row).execute()
         user = res.data[0]
         return {"token": create_token(user["id"]), "user": clean(user)}
-    
     
     @api.post("/auth/login")
     def login(body: LoginIn):
@@ -417,16 +342,13 @@ try:
             raise HTTPException(403, "Account suspended. Contact admin.")
         return {"token": create_token(user["id"]), "user": clean(user)}
     
-    
     @api.get("/auth/me")
     def me(user: dict = Depends(get_current_user)):
         return user
     
-    
     @api.post("/auth/logout")
     def logout(user: dict = Depends(get_current_user)):
         return {"ok": True}
-    
     
     @api.post("/auth/change-password")
     def change_password(body: ChangePasswordIn, user: dict = Depends(get_current_user)):
@@ -438,7 +360,6 @@ try:
         sb.table("users").update({"password_hash": hash_password(body.new_password)}).eq("id", user["id"]).execute()
         return {"ok": True}
     
-    
     @api.post("/auth/delete-account")
     def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current_user)):
         if user["role"] == "admin":
@@ -449,7 +370,6 @@ try:
         sb.table("users").delete().eq("id", user["id"]).execute()
         return {"ok": True}
     
-    
     # ---------- Users ----------
     @api.get("/users/{user_id}")
     def get_user(user_id: str):
@@ -457,7 +377,6 @@ try:
         if not u:
             raise HTTPException(404, "User not found")
         return clean(u)
-    
     
     @api.get("/users")
     def list_users(q: Optional[str] = None, role: Optional[str] = None):
@@ -469,7 +388,6 @@ try:
         res = query.limit(50).execute()
         return [clean(u) for u in res.data]
     
-    
     @api.put("/users/me")
     def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
         update = {k: v for k, v in body.dict().items() if v is not None}
@@ -478,7 +396,6 @@ try:
         if update:
             sb.table("users").update(update).eq("id", user["id"]).execute()
         return clean(get_user_by_id(user["id"]))
-    
     
     @api.post("/users/{user_id}/follow")
     def toggle_follow(user_id: str, user: dict = Depends(get_current_user)):
@@ -500,7 +417,6 @@ try:
             sb.table("users").update({"followers": tf}).eq("id", user_id).execute()
             return {"following": True}
     
-    
     @api.post("/users/{user_id}/block")
     def toggle_block(user_id: str, user: dict = Depends(get_current_user)):
         if user_id == user["id"]:
@@ -515,7 +431,6 @@ try:
         sb.table("users").update({"blocked": list(set(blocked + [user_id]))}).eq("id", user["id"]).execute()
         return {"blocked": True}
     
-    
     @api.get("/users/me/blocked")
     def list_blocked(user: dict = Depends(get_current_user)):
         ids = user.get("blocked") or []
@@ -523,7 +438,6 @@ try:
             return []
         res = sb.table("users").select("*").in_("id", ids).execute()
         return [clean(u) for u in res.data]
-    
     
     @api.put("/users/me/email-prefs")
     def update_email_prefs(body: EmailPrefsIn, user: dict = Depends(get_current_user)):
@@ -534,7 +448,6 @@ try:
                 prefs[k] = v
         sb.table("users").update({"email_prefs": prefs}).eq("id", user["id"]).execute()
         return clean(get_user_by_id(user["id"]))
-    
     
     # ---------- Books ----------
     @api.get("/books")
@@ -555,7 +468,6 @@ try:
         res = query.order("created_at", desc=True).limit(limit).execute()
         return res.data
     
-    
     @api.get("/books/{book_id}")
     def get_book(book_id: str):
         try:
@@ -570,7 +482,6 @@ try:
         b["owner"] = clean(owner) if owner else None
         return b
     
-    
     @api.post("/books")
     def create_book(body: BookIn, user: dict = Depends(get_current_user)):
         row = body.dict()
@@ -580,7 +491,6 @@ try:
         row["approved"] = True
         res = sb.table("books").insert(row).execute()
         return res.data[0]
-    
     
     @api.put("/books/{book_id}")
     def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_user)):
@@ -595,7 +505,6 @@ try:
         sb.table("books").update(row).eq("id", book_id).execute()
         return sb.table("books").select("*").eq("id", book_id).limit(1).execute().data[0]
     
-    
     @api.delete("/books/{book_id}")
     def delete_book(book_id: str, user: dict = Depends(get_current_user)):
         res = sb.table("books").select("*").eq("id", book_id).limit(1).execute()
@@ -607,12 +516,10 @@ try:
         sb.table("books").delete().eq("id", book_id).execute()
         return {"ok": True}
     
-    
     @api.get("/categories")
     def categories():
         return ["All", "Fiction", "Non-Fiction", "Biography", "History", "Science",
                 "Business", "Children", "Poetry", "Self-Help", "Textbook", "Regional"]
-    
     
     # ---------- Posts ----------
     @api.get("/posts")
@@ -628,22 +535,17 @@ try:
             p["author"] = users.get(p["user_id"])
         return posts
     
-    
     @api.post("/posts")
     def create_post(body: PostIn, user: dict = Depends(get_current_user)):
         row = {
-            "user_id": user["id"],
-            "text": body.text,
+            "user_id": user["id"], "text": body.text,
             "image_url": upload_data_url_to_storage(body.image_url or "", prefix="posts"),
-            "book_id": body.book_id,
-            "likes": [],
-            "comments": [],
+            "book_id": body.book_id, "likes": [], "comments": [],
         }
         res = sb.table("posts").insert(row).execute()
         p = res.data[0]
         p["author"] = user
         return p
-    
     
     @api.delete("/posts/{post_id}")
     def delete_post(post_id: str, user: dict = Depends(get_current_user)):
@@ -655,7 +557,6 @@ try:
             raise HTTPException(403, "Not allowed")
         sb.table("posts").delete().eq("id", post_id).execute()
         return {"ok": True}
-    
     
     @api.post("/posts/{post_id}/like")
     def like_post(post_id: str, user: dict = Depends(get_current_user)):
@@ -671,7 +572,6 @@ try:
         sb.table("posts").update({"likes": list(set(likes + [user["id"]]))}).eq("id", post_id).execute()
         return {"liked": True}
     
-    
     @api.post("/posts/{post_id}/comment")
     def comment_post(post_id: str, body: CommentIn, user: dict = Depends(get_current_user)):
         res = sb.table("posts").select("*").eq("id", post_id).limit(1).execute()
@@ -680,16 +580,12 @@ try:
         p = res.data[0]
         comments = p.get("comments") or []
         comment = {
-            "id": str(uuid.uuid4()),
-            "user_id": user["id"],
-            "user_name": user["name"],
-            "text": body.text,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "id": str(uuid.uuid4()), "user_id": user["id"], "user_name": user["name"],
+            "text": body.text, "created_at": datetime.now(timezone.utc).isoformat(),
         }
         comments.append(comment)
         sb.table("posts").update({"comments": comments}).eq("id", post_id).execute()
         return comment
-    
     
     # ---------- Cart ----------
     @api.get("/cart")
@@ -705,7 +601,6 @@ try:
         total = sum((i["book"]["price"] * i["quantity"]) for i in items if i.get("book"))
         return {"items": items, "total": total}
     
-    
     @api.post("/cart")
     def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
         if not sb.table("books").select("id").eq("id", body.book_id).limit(1).execute().data:
@@ -718,12 +613,10 @@ try:
             sb.table("cart").insert({"user_id": user["id"], "book_id": body.book_id, "quantity": body.quantity}).execute()
         return {"ok": True}
     
-    
     @api.delete("/cart/{book_id}")
     def remove_cart(book_id: str, user: dict = Depends(get_current_user)):
         sb.table("cart").delete().eq("user_id", user["id"]).eq("book_id", book_id).execute()
         return {"ok": True}
-    
     
     # ---------- Orders ----------
     @api.post("/orders")
@@ -755,25 +648,20 @@ try:
         sb.table("cart").delete().eq("user_id", user["id"]).execute()
         return res.data[0]
     
-    
     @api.get("/orders")
     def my_orders(user: dict = Depends(get_current_user)):
         res = sb.table("orders").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
         return res.data
     
-    
     @api.get("/orders/seller")
     def seller_orders(user: dict = Depends(get_current_user)):
-        # Filter client-side because items is JSONB
         res = sb.table("orders").select("*").order("created_at", desc=True).execute()
         return [o for o in res.data if any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))]
-    
     
     @api.get("/orders/all")
     def all_orders(user: dict = Depends(require_role("admin"))):
         res = sb.table("orders").select("*").order("created_at", desc=True).execute()
         return res.data
-    
     
     @api.put("/orders/{order_id}/status")
     def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_current_user)):
@@ -787,15 +675,12 @@ try:
         sb.table("orders").update({"status": body.status}).eq("id", order_id).execute()
         return {"ok": True, "status": body.status}
     
-    
     # ---------- Chat ----------
     def thread_id_of(a: str, b: str) -> str:
         return "::".join(sorted([a, b]))
     
-    
     @api.get("/chat/threads")
     def chat_threads(user: dict = Depends(get_current_user)):
-        # Fetch all messages involving me, group by thread client-side
         res = sb.table("messages").select("*").or_(
             f"from_user_id.eq.{user['id']},to_user_id.eq.{user['id']}"
         ).order("created_at", desc=True).execute()
@@ -810,21 +695,17 @@ try:
             other = get_user_by_id(other_id)
             if other:
                 result.append({
-                    "thread_id": tid,
-                    "other_user": clean(other),
-                    "last_message": m["text"],
-                    "last_time": m["created_at"],
+                    "thread_id": tid, "other_user": clean(other),
+                    "last_message": m["text"], "last_time": m["created_at"],
                 })
         result.sort(key=lambda x: x["last_time"], reverse=True)
         return result
-    
     
     @api.get("/chat/{other_user_id}")
     def chat_messages(other_user_id: str, user: dict = Depends(get_current_user)):
         tid = thread_id_of(user["id"], other_user_id)
         res = sb.table("messages").select("*").eq("thread_id", tid).order("created_at").execute()
         return res.data
-    
     
     @api.post("/chat")
     def send_message(body: MessageIn, user: dict = Depends(get_current_user)):
@@ -838,13 +719,11 @@ try:
         res = sb.table("messages").insert(row).execute()
         return res.data[0]
     
-    
     @api.post("/chat/{other_user_id}/read")
     def mark_thread_read(other_user_id: str, user: dict = Depends(get_current_user)):
         tid = thread_id_of(user["id"], other_user_id)
         sb.table("messages").update({"read": True}).eq("thread_id", tid).eq("to_user_id", user["id"]).eq("read", False).execute()
         return {"ok": True}
-    
     
     @api.get("/notifications")
     def get_notifications(user: dict = Depends(get_current_user)):
@@ -852,7 +731,6 @@ try:
             return {"unread_messages": 0, "recent": [], "pending_orders": 0}
         unread_res = sb.table("messages").select("*").eq("to_user_id", user["id"]).eq("read", False).order("created_at", desc=True).limit(5).execute()
         unread = len(unread_res.data)
-        # For a fuller count, do a count query
         count_res = sb.table("messages").select("id", count="exact").eq("to_user_id", user["id"]).eq("read", False).execute()
         unread_total = count_res.count or unread
         pending = 0
@@ -860,7 +738,6 @@ try:
             orders_res = sb.table("orders").select("*").in_("status", ["New", "Processing"]).execute()
             pending = sum(1 for o in orders_res.data if any(it.get("seller_id") == user["id"] for it in (o.get("items") or [])))
         return {"unread_messages": unread_total, "recent": unread_res.data, "pending_orders": pending}
-    
     
     # ---------- Admin ----------
     @api.get("/admin/stats")
@@ -873,17 +750,14 @@ try:
         stores = sb.table("users").select("id", count="exact").eq("role", "store_owner").execute().count or 0
         publishers = sb.table("users").select("id", count="exact").eq("role", "publisher").execute().count or 0
         return {
-            "total_users": total_users, "total_books": total_books,
-            "total_orders": total_orders, "revenue": revenue,
-            "stores": stores, "publishers": publishers,
+            "total_users": total_users, "total_books": total_books, "total_orders": total_orders,
+            "revenue": revenue, "stores": stores, "publishers": publishers,
         }
-    
     
     @api.get("/admin/users")
     def admin_users(user: dict = Depends(require_role("admin"))):
         res = sb.table("users").select("*").execute()
         return [clean(u) for u in res.data]
-    
     
     @api.put("/admin/users/{user_id}/suspend")
     def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
@@ -893,12 +767,10 @@ try:
         sb.table("users").update({"suspended": not u.get("suspended", False)}).eq("id", user_id).execute()
         return {"ok": True}
     
-    
     @api.delete("/admin/users/{user_id}")
     def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin"))):
         sb.table("users").delete().eq("id", user_id).execute()
         return {"ok": True}
-    
     
     @api.put("/admin/books/{book_id}/feature")
     def admin_feature(book_id: str, user: dict = Depends(require_role("admin"))):
@@ -909,11 +781,9 @@ try:
         sb.table("books").update({"featured": not b.get("featured", False)}).eq("id", book_id).execute()
         return {"ok": True}
     
-    
     @api.get("/admin/books")
     def admin_books(user: dict = Depends(require_role("admin"))):
         return sb.table("books").select("*").order("created_at", desc=True).execute().data
-    
     
     # ---------- Dashboard ----------
     @api.get("/dashboard/overview")
@@ -928,8 +798,6 @@ try:
                     revenue += float(it.get("price") or 0) * (it.get("quantity") or 0)
         return {"total_books": my_books, "total_orders": len(my_orders), "revenue": revenue}
     
-    
-    # ---------- Register ----------
     app.include_router(api)
     
     app.add_middleware(
@@ -939,21 +807,9 @@ try:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    
+
 except Exception as e:
     err = traceback.format_exc()
-    
-    async def fallback_app(scope, receive, send):
-        if scope["type"] == "http":
-            await send({
-                "type": "http.response.start",
-                "status": 500,
-                "headers": [(b"content-type", b"application/json")]
-            })
-            await send({
-                "type": "http.response.body",
-                "body": json.dumps({"error": "BOOT_CRASH", "traceback": err}).encode("utf-8")
-            })
-            
-    app = fallback_app
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+    def catch_all(request: Request):
+        return JSONResponse(status_code=500, content={"error": "BOOT_CRASH", "traceback": err})
