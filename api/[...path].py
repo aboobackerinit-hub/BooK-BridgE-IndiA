@@ -1,4 +1,8 @@
 import traceback
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+app = FastAPI(title="BookBridge India API (Supabase)")
 
 try:
     import typing
@@ -933,19 +937,11 @@ try:
         allow_headers=["*"],
     )
     
+    
+    # NOTE: backend/server.py already includes `app.include_router(api)`
+    
 except Exception as e:
     err = traceback.format_exc()
-    
-    async def app(scope, receive, send):
-        assert scope['type'] == 'http'
-        await send({
-            'type': 'http.response.start',
-            'status': 500,
-            'headers': [
-                (b'content-type', b'text/plain'),
-            ]
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': f"BOOT CRASH CAUGHT BY ASGI WRAPPER:\n{err}".encode('utf-8'),
-        })
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+    async def catch_all(request: Request, path: str):
+        return JSONResponse(status_code=500, content={"error": "BOOT_CRASH", "traceback": err})

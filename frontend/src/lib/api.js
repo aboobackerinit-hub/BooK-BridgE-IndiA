@@ -1,8 +1,6 @@
 import axios from "axios";
 
-// On Vercel same-origin deployment, REACT_APP_BACKEND_URL is empty → calls hit /api on same domain.
-// On Emergent preview / local dev, REACT_APP_BACKEND_URL is set in frontend/.env.
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
+const BACKEND_URL = process.env.NODE_ENV === "production" ? (process.env.REACT_APP_BACKEND_URL || "") : "http://localhost:8001";
 export const API = `${BACKEND_URL}/api`;
 
 const api = axios.create({ baseURL: API });
