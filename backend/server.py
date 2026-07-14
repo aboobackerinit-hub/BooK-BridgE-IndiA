@@ -1,19 +1,6 @@
 import typing
 
-# Pydantic v1.10.x monkeypatch for Python 3.13 and 3.14
-# Python 3.14 changed the signature of ForwardRef._evaluate, making recursive_guard keyword-only.
-# Pydantic v1 calls it with 3 positional arguments (passing set() as the 3rd, which ends up in type_params).
-if hasattr(typing, "ForwardRef"):
-    _orig_evaluate = typing.ForwardRef._evaluate
-    def _patched_evaluate(self, globalns, localns, *args, **kwargs):
-        try:
-            return _orig_evaluate(self, globalns, localns, *args, **kwargs)
-        except TypeError as e:
-            if "recursive_guard" in str(e) and args:
-                # Python 3.12+ (or 3.13+) might require type_params as positional and recursive_guard as keyword
-                return _orig_evaluate(self, globalns, localns, (), recursive_guard=args[0])
-            raise e
-    typing.ForwardRef._evaluate = _patched_evaluate
+
 
 from dotenv import load_dotenv
 from pathlib import Path
