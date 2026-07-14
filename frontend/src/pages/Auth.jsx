@@ -122,11 +122,7 @@ export const RegisterPage = () => {
     } finally { setLoading(false); }
   };
 
-  const roles = [
-    { value: "user", label: "Reader", desc: "Buy, sell & review books" },
-    { value: "store_owner", label: "Store Owner", desc: "Run your bookstore" },
-    { value: "publisher", label: "Publisher", desc: "Publish & distribute" },
-  ];
+
 
   return (
     <AuthLayout>
@@ -139,24 +135,7 @@ export const RegisterPage = () => {
         <h2 className="font-serif text-4xl">Create your account</h2>
       </div>
       <form onSubmit={submit} className="space-y-4">
-        <div>
-          <Label>Choose your role</Label>
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            {roles.map((r) => (
-              <button type="button" key={r.value}
-                data-testid={`role-${r.value}-btn`}
-                onClick={() => setForm({ ...form, role: r.value })}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  form.role === r.value
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-primary/40"
-                }`}>
-                <div className="text-sm font-medium">{r.label}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{r.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
+
         <div>
           <Label htmlFor="name">Full name</Label>
           <Input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
