@@ -2,11 +2,11 @@ import traceback
 import json
 import sys
 import os
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
-# Define the global ASGI app that will handle everything.
-# We will do imports INSIDE this function (or lazily) so that if they fail,
-# we can return the error directly to the browser.
-_real_app = None
+app = FastAPI(title="BookBridge India API (Supabase)")
+
 _boot_error = None
 
 try:
@@ -72,8 +72,7 @@ try:
     JWT_EXPIRE_HOURS = 24 * 7  # 7 days
     BUCKET = "images"
     
-    fastapi_app = FastAPI(title="BookBridge India API (Supabase)")
-    api = APIRouter(prefix="/api")
+    api = APIRouter()
     
     @api.get("/health")
     def health():
@@ -737,31 +736,22 @@ try:
                     revenue += float(it.get("price") or 0) * (it.get("quantity") or 0)
         return {"total_books": my_books, "total_orders": len(my_orders), "revenue": revenue}
     
-    fastapi_app.include_router(api)
-    fastapi_app.add_middleware(
+    app.include_router(api, prefix="/api")
+    app.include_router(api)
+    
+    app.add_middleware(
         CORSMiddleware,
         allow_credentials=True,
         allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    _real_app = fastapi_app
 
 except Exception as e:
-    _boot_error = traceback.format_exc()
-
-async def app(scope, receive, send):
-    if _boot_error:
-        if scope["type"] == "http":
-            await send({
-                "type": "http.response.start",
-                "status": 500,
-                "headers": [(b"content-type", b"application/json")]
-            })
-            await send({
-                "type": "http.response.body",
-                "body": json.dumps({"error": "BOOT_CRASH", "traceback": _boot_error}).encode("utf-8")
-            })
-        return
-    else:
-        await _real_app(scope, receive, send)
+    err = traceback.format_exc()
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+    async def catch_all(request: Request, path: str):
+        return JSONResponse(
+            status_code=500,
+            content={"error": "BOOT_CRASH", "traceback": err}
+        )
