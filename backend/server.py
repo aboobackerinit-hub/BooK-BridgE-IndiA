@@ -378,6 +378,8 @@ def startup():
 def register(body: RegisterIn):
     if body.role not in ("user", "store_owner", "publisher"):
         raise HTTPException(400, "Invalid role")
+    if sb is None:
+        raise HTTPException(500, "Supabase is not configured properly. Please add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to your Vercel Environment Variables.")
     email = body.email.lower()
     existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
     if existing.data:
