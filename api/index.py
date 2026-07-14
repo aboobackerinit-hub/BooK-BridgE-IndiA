@@ -59,8 +59,10 @@ os.environ["SUPABASE_SERVICE_ROLE_KEY"] = SUPABASE_SERVICE_ROLE_KEY
 sb: Optional[Client] = None
 sb_error: str = ""
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    # Bulletproof the URL in case the user accidentally included /rest/v1
+    clean_url = SUPABASE_URL.split("/rest/v1")[0].strip().rstrip("/")
     try:
-        sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        sb = create_client(clean_url, SUPABASE_SERVICE_ROLE_KEY)
     except Exception as _e:
         sb_error = str(_e)
         logging.error(f"Supabase init failed: {_e}")
