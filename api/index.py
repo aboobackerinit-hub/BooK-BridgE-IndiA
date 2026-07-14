@@ -57,11 +57,15 @@ os.environ["SUPABASE_SERVICE_ROLE_KEY"] = SUPABASE_SERVICE_ROLE_KEY
 
 # Fail loudly at REQUEST time, not import time — otherwise Vercel deploy hangs.
 sb: Optional[Client] = None
+sb_error: str = ""
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     try:
         sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     except Exception as _e:
+        sb_error = str(_e)
         logging.error(f"Supabase init failed: {_e}")
+else:
+    sb_error = "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables."
 
 JWT_ALG = "HS256"
 JWT_EXPIRE_HOURS = 24 * 7  # 7 days
@@ -379,7 +383,7 @@ def register(body: RegisterIn):
     if body.role not in ("user", "store_owner", "publisher"):
         raise HTTPException(400, "Invalid role")
     if sb is None:
-        raise HTTPException(500, "Supabase is not configured properly. Please add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to your Vercel Environment Variables.")
+        raise HTTPException(500, f"Supabase Error: {sb_error} (Remember: you MUST 'Redeploy' on Vercel after adding environment variables!)")
     email = body.email.lower()
     existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
     if existing.data:
