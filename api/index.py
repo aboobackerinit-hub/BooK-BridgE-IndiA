@@ -1,34 +1,17 @@
-import traceback
-import json
+from fastapi import FastAPI, APIRouter
+from fastapi.responses import JSONResponse
 import sys
-import os
 
-try:
-    import fastapi
-    from fastapi import FastAPI, Request
-    FASTAPI_AVAILABLE = True
-except Exception as e:
-    FASTAPI_AVAILABLE = False
-    FASTAPI_ERROR = traceback.format_exc()
+app = FastAPI(title="BookBridge Debug")
+api = APIRouter()
 
-from http.server import BaseHTTPRequestHandler
+@api.get("/health")
+def health():
+    return {"ok": True, "python_path": sys.path}
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        response = {
-            "hello": "world",
-            "fastapi_available": FASTAPI_AVAILABLE,
-            "fastapi_error": FASTAPI_ERROR if not FASTAPI_AVAILABLE else None,
-            "sys_path": sys.path,
-            "cwd": os.getcwd()
-        }
-        self.wfile.write(json.dumps(response).encode())
-    
-    def do_POST(self):
-        self.do_GET()
+@api.post("/auth/register")
+def register():
+    return JSONResponse(status_code=500, content={"error": "Still debugging Vercel imports!"})
 
-# Also provide a dummy app just in case Vercel is stubborn
-app = None
+app.include_router(api, prefix="/api")
+app.include_router(api)
