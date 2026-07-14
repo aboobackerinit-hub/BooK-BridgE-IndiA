@@ -2,29 +2,19 @@ import traceback
 import json
 
 def build_error_app(err_msg, tb_msg):
-    async def error_app(scope, receive, send):
-        if scope['type'] == 'http':
-            await send({
-                'type': 'http.response.start',
-                'status': 500,
-                'headers': [(b'content-type', b'application/json')],
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps({
-                    "error": "Backend initialization failed",
-                    "details": err_msg,
-                    "traceback": tb_msg
-                }).encode('utf-8'),
-            })
-        elif scope['type'] == 'lifespan':
-            while True:
-                message = await receive()
-                if message['type'] == 'lifespan.startup':
-                    await send({'type': 'lifespan.startup.complete'})
-                elif message['type'] == 'lifespan.shutdown':
-                    await send({'type': 'lifespan.shutdown.complete'})
-                    break
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    error_app = FastAPI()
+    @error_app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+    async def catch_all(path: str):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Backend initialization failed",
+                "details": err_msg,
+                "traceback": tb_msg
+            }
+        )
     return error_app
 
 try:
