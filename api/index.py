@@ -385,33 +385,43 @@ def register(body: RegisterIn):
     if sb is None:
         raise HTTPException(500, f"Supabase Error: {sb_error} (Remember: you MUST 'Redeploy' on Vercel after adding environment variables!)")
     email = body.email.lower()
-    existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
-    if existing.data:
-        raise HTTPException(400, "Email already registered")
-    row = {
-        "email": email,
-        "password_hash": hash_password(body.password),
-        "name": body.name,
-        "role": body.role,
-        "bbid": gen_bbid(body.name),
-    }
-    res = sb.table("users").insert(row).execute()
-    user = res.data[0]
-    return {"token": create_token(user["id"]), "user": clean(user)}
+    try:
+        existing = sb.table("users").select("id").eq("email", email).limit(1).execute()
+        if existing.data:
+            raise HTTPException(400, "Email already registered")
+        row = {
+            "email": email,
+            "password_hash": hash_password(body.password),
+            "name": body.name,
+            "role": body.role,
+            "bbid": gen_bbid(body.name),
+        }
+        res = sb.table("users").insert(row).execute()
+        user = res.data[0]
+        return {"token": create_token(user["id"]), "user": clean(user)}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(500, f"Database Error: {str(e)}")
 
 
 @api.post("/auth/login")
 def login(body: LoginIn):
     email = body.email.lower()
-    res = sb.table("users").select("*").eq("email", email).limit(1).execute()
-    if not res.data:
-        raise HTTPException(401, "Invalid email or password")
-    user = res.data[0]
-    if not verify_password(body.password, user["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    if user.get("suspended"):
-        raise HTTPException(403, "Account suspended. Contact admin.")
-    return {"token": create_token(user["id"]), "user": clean(user)}
+    try:
+        res = sb.table("users").select("*").eq("email", email).limit(1).execute()
+        if not res.data:
+            raise HTTPException(401, "Invalid email or password")
+        user = res.data[0]
+        if not verify_password(body.password, user["password_hash"]):
+            raise HTTPException(401, "Invalid email or password")
+        if user.get("suspended"):
+            raise HTTPException(403, "Account suspended. Contact admin.")
+        return {"token": create_token(user["id"]), "user": clean(user)}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(500, f"Database Error: {str(e)}")
 
 
 @api.get("/auth/me")
