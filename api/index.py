@@ -1,8 +1,11 @@
 import traceback
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+import json
 
-app = FastAPI(title="BookBridge India API (Supabase)")
+class DummyApp:
+    async def __call__(self, scope, receive, send):
+        pass
+
+app = DummyApp()
 
 try:
     import typing
@@ -938,10 +941,19 @@ try:
     )
     
     
-    # NOTE: backend/server.py already includes `app.include_router(api)`
-    
 except Exception as e:
     err = traceback.format_exc()
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
-    async def catch_all(request: Request, path: str):
-        return JSONResponse(status_code=500, content={"error": "BOOT_CRASH", "traceback": err})
+    
+    async def fallback_app(scope, receive, send):
+        if scope["type"] == "http":
+            await send({
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [(b"content-type", b"application/json")]
+            })
+            await send({
+                "type": "http.response.body",
+                "body": json.dumps({"error": "BOOT_CRASH", "traceback": err}).encode("utf-8")
+            })
+            
+    app = fallback_app
