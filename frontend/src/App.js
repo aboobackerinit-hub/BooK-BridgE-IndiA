@@ -46,9 +46,9 @@ function App() {
             <Route path="/profile/:userId" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sell" element={<SellBookPage />} />
-            <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
-            <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
-            <Route path="/admin" element={<RoleGuard roles={["admin"]}><AdminDashboard /></RoleGuard>} />
+            <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin", "super_admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
+            <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin", "super_admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
+            <Route path="/admin" element={<RoleGuard roles={["admin", "super_admin"]}><AdminDashboard /></RoleGuard>} />
           </Route>
           <Route path="*" element={<Navigate to="/store" replace />} />
         </Routes>

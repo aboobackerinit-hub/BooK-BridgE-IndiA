@@ -175,7 +175,7 @@ async def get_current_user(request: Request) -> dict:
 
 def require_role(*roles):
     async def dep(user: dict = Depends(get_current_user)):
-        if user.get("role") not in roles and user.get("role") != "admin":
+        if user.get("role") not in roles and user.get("role") not in ("admin", "super_admin"):
             raise HTTPException(403, "Insufficient permissions")
         return user
     return dep
@@ -205,9 +205,22 @@ def upload_data_url_to_storage(data_url: str, prefix: str = "img") -> str:
 # ---------- Models ----------
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str
-    name: str
+    password: str = Field(..., min_length=6)
+    name: str = Field(..., min_length=2)
     role: str = "user"
+
+class AssignSuperAdminIn(BaseModel):
+    email: EmailStr
+
+class UserUpdateIn(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+
+class BookUpdateIn(BaseModel):
+    title: Optional[str] = None
+    author: Optional[str] = None
+    price: Optional[float] = None
+    category: Optional[str] = None
 
 
 class LoginIn(BaseModel):
@@ -733,6 +746,50 @@ def remove_cart(book_id: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@api.put("/admin/users/{user_id}")
+def update_user(user_id: str, body: UserUpdateIn, user: dict = Depends(require_role("admin"))):
+    updates = {}
+    if body.name is not None:
+        updates["name"] = body.name
+    if body.role is not None:
+        updates["role"] = body.role
+    if not updates:
+        return {"ok": True}
+    res = sb.table("users").update(updates).eq("id", user_id).execute()
+    return res.data[0] if res.data else {}
+
+@api.put("/admin/assign_super_admin")
+def assign_super_admin(body: AssignSuperAdminIn, user: dict = Depends(require_role("super_admin", "admin"))):
+    email = body.email.lower()
+    res = sb.table("users").select("id").eq("email", email).limit(1).execute()
+    if not res.data:
+        raise HTTPException(404, "User not found")
+    target_id = res.data[0]["id"]
+    sb.table("users").update({"role": "super_admin"}).eq("id", target_id).execute()
+    return {"ok": True, "message": "Super Admin role granted"}
+
+@api.put("/admin/books/{book_id}")
+def update_book(book_id: str, body: BookUpdateIn, user: dict = Depends(require_role("admin"))):
+    updates = {}
+    if body.title is not None: updates["title"] = body.title
+    if body.author is not None: updates["author"] = body.author
+    if body.price is not None: updates["price"] = body.price
+    if body.category is not None: updates["category"] = body.category
+    
+    if not updates: return {"ok": True}
+    res = sb.table("books").update(updates).eq("id", book_id).execute()
+    return res.data[0] if res.data else {}
+
+@api.delete("/admin/books/{book_id}")
+def delete_book(book_id: str, user: dict = Depends(require_role("admin"))):
+    sb.table("books").delete().eq("id", book_id).execute()
+    return {"ok": True}
+
+@api.delete("/admin/orders/{order_id}")
+def delete_order(order_id: str, user: dict = Depends(require_role("admin"))):
+    sb.table("orders").delete().eq("id", order_id).execute()
+    return {"ok": True}
+
 # ---------- Orders ----------
 @api.post("/orders")
 def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
@@ -790,7 +847,7 @@ def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_c
         raise HTTPException(404, "Order not found")
     o = res.data[0]
     is_seller = any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))
-    if not is_seller and user["role"] != "admin":
+    if not is_seller and user["role"] not in ("admin", "super_admin"):
         raise HTTPException(403, "Not allowed")
     sb.table("orders").update({"status": body.status}).eq("id", order_id).execute()
     return {"ok": True, "status": body.status}
