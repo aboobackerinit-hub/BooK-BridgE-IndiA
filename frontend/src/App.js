@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { PrefsProvider } from "@/context/PrefsContext";
 import { Toaster } from "@/components/ui/sonner";
 import { LoginPage, RegisterPage } from "@/pages/Auth";
+import ResetPassword from "@/pages/ResetPassword";
 import AppShell from "@/components/layout/AppShell";
 import StorePage from "@/pages/Store";
 import BookDetail from "@/pages/BookDetail";
@@ -34,6 +35,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/store" replace />} />
             <Route path="/store" element={<StorePage />} />
@@ -46,9 +48,9 @@ function App() {
             <Route path="/profile/:userId" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/sell" element={<SellBookPage />} />
-            <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin", "super_admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
-            <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin", "super_admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
-            <Route path="/admin" element={<RoleGuard roles={["admin", "super_admin"]}><AdminDashboard /></RoleGuard>} />
+            <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
+            <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
+            <Route path="/admin" element={<RoleGuard roles={["admin"]}><AdminDashboard /></RoleGuard>} />
           </Route>
           <Route path="*" element={<Navigate to="/store" replace />} />
         </Routes>

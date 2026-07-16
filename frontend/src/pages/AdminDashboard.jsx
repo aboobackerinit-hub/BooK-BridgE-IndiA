@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Users, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban } from "lucide-react";
+import { Users, User, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
@@ -22,8 +22,6 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [books, setBooks] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [superAdminEmail, setSuperAdminEmail] = useState("");
-  const { user } = useAuth();
 
   const load = async () => {
     const [s, u, b, o] = await Promise.all([
@@ -75,17 +73,6 @@ const AdminDashboard = () => {
       load();
     } catch (err) { toast.error("Failed to delete book"); }
   };
-  const grantSuperAdmin = async (e) => {
-    e.preventDefault();
-    try {
-      await api.put("/admin/assign_super_admin", { email: superAdminEmail });
-      toast.success("Super Admin role granted!");
-      setSuperAdminEmail("");
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to grant role");
-    }
-  };
   
   const EditUserDialog = ({ u }) => {
     const [name, setName] = useState(u.name);
@@ -114,7 +101,6 @@ const AdminDashboard = () => {
                   <SelectItem value="store_owner">Store Owner</SelectItem>
                   <SelectItem value="publisher">Publisher</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -167,17 +153,9 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Command Center</div>
-          <h1 className="font-serif text-4xl">Admin Dashboard</h1>
-        </div>
-        {user?.role === "super_admin" && (
-          <form onSubmit={grantSuperAdmin} className="flex items-center gap-2 bg-muted p-2 rounded-lg">
-            <Input type="email" placeholder="Email to grant Super Admin..." value={superAdminEmail} onChange={e=>setSuperAdminEmail(e.target.value)} required className="w-64 h-9 bg-background" />
-            <Button type="submit" size="sm" className="h-9">Grant</Button>
-          </form>
-        )}
+      <div>
+        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Command Center</div>
+        <h1 className="font-serif text-4xl">Admin Dashboard</h1>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -210,7 +188,7 @@ const AdminDashboard = () => {
               <Button size="sm" variant="outline" onClick={() => suspendUser(u.id)} data-testid={`suspend-${u.id}`}>
                 <Ban className="w-3 h-3 mr-1" /> {u.suspended ? "Unsuspend" : "Suspend"}
               </Button>
-              {u.role !== "super_admin" && (
+              {u.role !== "admin" && (
                 <Button size="icon" variant="ghost" onClick={() => deleteUser(u.id)} className="text-destructive" data-testid={`del-user-${u.id}`}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -244,18 +222,51 @@ const AdminDashboard = () => {
 
         <TabsContent value="orders" className="mt-4 space-y-2">
           {orders.map((o) => (
-            <Card key={o.id} className="p-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono font-semibold">{o.order_no}</div></div>
-                <div><div className="text-xs text-muted-foreground">Customer</div><div className="text-sm">{o.user_name}</div></div>
-                <div><div className="text-xs text-muted-foreground">Total</div><div className="font-mono text-primary">₹{o.total}</div></div>
-                <Select value={o.status} onValueChange={(v) => updateOrder(o.id, v)}>
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-                <Button size="icon" variant="ghost" onClick={() => deleteOrder(o.id)} className="text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+            <Card key={o.id} className="p-4 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b">
+                <div><div className="text-xs text-muted-foreground">Order ID</div><div className="font-mono font-semibold">{o.order_no}</div></div>
+                <div><div className="text-xs text-muted-foreground">Customer Name</div><div className="text-sm">{o.user_name}</div></div>
+                <div><div className="text-xs text-muted-foreground">Total Paid</div><div className="font-mono text-primary font-bold">₹{o.total}</div></div>
+                <div className="flex items-center gap-2">
+                  <Select value={o.status} onValueChange={(v) => updateOrder(o.id, v)}>
+                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Button size="icon" variant="ghost" onClick={() => deleteOrder(o.id)} className="text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
+                  <div className="text-xs font-bold mb-3 uppercase text-primary tracking-wider flex items-center gap-2">
+                    <User className="w-4 h-4" /> Customer & Shipping
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm flex justify-between"><span className="font-medium text-muted-foreground">Name:</span> <span className="font-semibold">{o.user_name || "N/A"}</span></div>
+                    <div className="text-sm flex justify-between"><span className="font-medium text-muted-foreground">Mobile:</span> <span className="font-mono">{o.phone || "N/A"}</span></div>
+                    <div className="text-sm flex flex-col gap-1 mt-2">
+                      <span className="font-medium text-muted-foreground">Delivery Address:</span>
+                      <span className="bg-background/50 p-2 rounded text-sm border">{o.address || "No address provided"}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
+                  <div className="text-xs font-bold mb-3 uppercase text-primary tracking-wider flex items-center gap-2">
+                    <Package className="w-4 h-4" /> Order Items
+                  </div>
+                  <div className="space-y-3">
+                    {o.items?.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start text-sm bg-background/50 p-2 rounded border">
+                        <div className="flex flex-col">
+                          <span className="font-semibold line-clamp-1">{item.book_title || item.title || "Unknown Book"}</span>
+                          <span className="text-xs text-muted-foreground">Qty: {item.quantity || 1}</span>
+                        </div>
+                        <span className="font-mono font-semibold text-primary">₹{item.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </Card>
           ))}

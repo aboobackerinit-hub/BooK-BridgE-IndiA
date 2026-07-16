@@ -125,16 +125,30 @@ alter table public.cart      enable row level security;
 alter table public.orders    enable row level security;
 alter table public.messages  enable row level security;
 
+-- Because the backend uses the anon key (custom JWT auth), we must grant full access to anon.
+-- The backend enforces all security and authorization rules internally.
+drop policy if exists "users_public_all" on public.users;
+create policy "users_public_all" on public.users for all using (true) with check (true);
+
+drop policy if exists "books_public_all" on public.books;
+create policy "books_public_all" on public.books for all using (true) with check (true);
+
+drop policy if exists "posts_public_all" on public.posts;
+create policy "posts_public_all" on public.posts for all using (true) with check (true);
+
+drop policy if exists "cart_public_all" on public.cart;
+create policy "cart_public_all" on public.cart for all using (true) with check (true);
+
+drop policy if exists "orders_public_all" on public.orders;
+create policy "orders_public_all" on public.orders for all using (true) with check (true);
+
+drop policy if exists "messages_public_all" on public.messages;
+create policy "messages_public_all" on public.messages for all using (true) with check (true);
+
+-- Drop old read-only policies if they exist
 drop policy if exists "users_public_read" on public.users;
-create policy "users_public_read" on public.users for select using (true);
-
 drop policy if exists "books_public_read" on public.books;
-create policy "books_public_read" on public.books for select using (true);
-
 drop policy if exists "posts_public_read" on public.posts;
-create policy "posts_public_read" on public.posts for select using (true);
-
--- Cart/orders/messages have NO anon read policy — only backend (service_role) accesses these.
 
 -- ============================================================
 -- 3) STORAGE BUCKET
@@ -143,9 +157,11 @@ insert into storage.buckets (id, name, public)
 values ('images', 'images', true)
 on conflict (id) do nothing;
 
+drop policy if exists "images_public_all" on storage.objects;
+create policy "images_public_all" on storage.objects for all using (bucket_id = 'images') with check (bucket_id = 'images');
+
+-- Drop old read-only policy
 drop policy if exists "images_public_read" on storage.objects;
-create policy "images_public_read" on storage.objects
-  for select using (bucket_id = 'images');
 
 -- ============================================================
 -- VERIFY

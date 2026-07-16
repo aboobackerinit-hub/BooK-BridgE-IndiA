@@ -21,8 +21,10 @@ from pathlib import Path
 # Load .env and .env.local for local dev; Vercel injects env vars natively.
 load_dotenv(Path(__file__).parent / '.env')
 load_dotenv(Path(__file__).parent.parent / '.env.local')
-
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+import string
+import smtplib
+from email.mime.text import MIMEText
+from fastapi import FastAPI, APIRouter, Request, HTTPException, Depends
 from starlette.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 try:
@@ -175,7 +177,7 @@ async def get_current_user(request: Request) -> dict:
 
 def require_role(*roles):
     async def dep(user: dict = Depends(get_current_user)):
-        if user.get("role") not in roles and user.get("role") not in ("admin", "super_admin"):
+        if user.get("role") not in roles and user.get("role") != "admin":
             raise HTTPException(403, "Insufficient permissions")
         return user
     return dep
@@ -209,8 +211,12 @@ class RegisterIn(BaseModel):
     name: str = Field(..., min_length=2)
     role: str = "user"
 
-class AssignSuperAdminIn(BaseModel):
-    email: EmailStr
+class ResetPasswordIn(BaseModel):
+    email: str
+
+class ResetPasswordConfirmIn(BaseModel):
+    token: str
+    new_password: str
 
 class UserUpdateIn(BaseModel):
     name: Optional[str] = None
@@ -438,6 +444,63 @@ def login(body: LoginIn):
             raise e
         raise HTTPException(500, f"Database Error: {str(e)}")
 
+
+@api.post("/auth/reset-password")
+def reset_password(body: ResetPasswordIn):
+    try:
+        user_res = sb.table("users").select("id, email, name").eq("email", body.email).limit(1).execute()
+        if not user_res.data:
+            return {"ok": True, "message": "Password reset email sent."} # Security: Don't reveal missing email
+        
+        user = user_res.data[0]
+        payload = {"sub": user["id"], "exp": datetime.now(timezone.utc) + timedelta(hours=1), "type": "reset"}
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+        
+        reset_link = f"http://localhost:3000/reset-password?token={token}"
+        
+        # Send Email
+        msg = MIMEText(f"Hi {user['name']},\n\nPlease click the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour.")
+        msg["Subject"] = "Password Reset Request"
+        msg["From"] = os.environ.get("SMTP_USER", "noreply@bookbridge.local")
+        msg["To"] = user["email"]
+        
+        try:
+            with smtplib.SMTP(os.environ.get("SMTP_HOST", "localhost"), int(os.environ.get("SMTP_PORT", "1025"))) as server:
+                smtp_user = os.environ.get("SMTP_USER")
+                smtp_pass = os.environ.get("SMTP_PASS")
+                if smtp_user and smtp_pass:
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        except Exception as smtp_e:
+            logger.error(f"Failed to send email: {smtp_e}")
+            raise HTTPException(500, "Failed to send reset email. Please ensure your local SMTP server is running or configured correctly in .env.")
+
+        return {"ok": True, "message": "Password reset email sent."}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        logger.error(f"Reset password failed: {e}", exc_info=True)
+        raise HTTPException(500, "Internal Server Error")
+
+
+@api.post("/auth/reset-password/confirm")
+def reset_password_confirm(body: ResetPasswordConfirmIn):
+    try:
+        payload = jwt.decode(body.token, JWT_SECRET, algorithms=[JWT_ALG])
+        if payload.get("type") != "reset":
+            raise HTTPException(400, "Invalid token type")
+        user_id = payload["sub"]
+        
+        new_hash = hash_password(body.new_password)
+        sb.table("users").update({"password_hash": new_hash}).eq("id", user_id).execute()
+        return {"ok": True, "message": "Password updated successfully"}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(400, "Reset link has expired.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(400, "Invalid reset link.")
+    except Exception as e:
+        logger.error(f"Reset confirm failed: {e}", exc_info=True)
+        raise HTTPException(500, "Internal Server Error")
 
 @api.get("/auth/me")
 def me(user: dict = Depends(get_current_user)):
@@ -758,15 +821,7 @@ def update_user(user_id: str, body: UserUpdateIn, user: dict = Depends(require_r
     res = sb.table("users").update(updates).eq("id", user_id).execute()
     return res.data[0] if res.data else {}
 
-@api.put("/admin/assign_super_admin")
-def assign_super_admin(body: AssignSuperAdminIn, user: dict = Depends(require_role("super_admin", "admin"))):
-    email = body.email.lower()
-    res = sb.table("users").select("id").eq("email", email).limit(1).execute()
-    if not res.data:
-        raise HTTPException(404, "User not found")
-    target_id = res.data[0]["id"]
-    sb.table("users").update({"role": "super_admin"}).eq("id", target_id).execute()
-    return {"ok": True, "message": "Super Admin role granted"}
+
 
 @api.put("/admin/books/{book_id}")
 def update_book(book_id: str, body: BookUpdateIn, user: dict = Depends(require_role("admin"))):
@@ -804,12 +859,19 @@ def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
         b = books.get(c["book_id"])
         if not b:
             continue
+        if b.get("stock", 0) < c["quantity"]:
+            raise HTTPException(400, f"Not enough stock for book: {b['title']}")
+        
         order_items.append({
             "book_id": b["id"], "title": b["title"], "author": b["author"],
             "image_url": b.get("image_url") or "", "price": float(b["price"]),
             "quantity": c["quantity"], "seller_id": b["owner_id"],
         })
         total += float(b["price"]) * c["quantity"]
+        
+        # Decrement stock
+        new_stock = b.get("stock", 0) - c["quantity"]
+        sb.table("books").update({"stock": new_stock}).eq("id", b["id"]).execute()
     order_no = "BB" + "".join(random.choices(string.digits, k=8))
     order_row = {
         "order_no": order_no, "user_id": user["id"], "user_name": user["name"],
@@ -818,6 +880,46 @@ def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
     }
     res = sb.table("orders").insert(order_row).execute()
     sb.table("cart").delete().eq("user_id", user["id"]).execute()
+    
+    # -------------------------------------------------------------
+    for item in order_items:
+        seller_id = item.get("seller_id")
+        if seller_id:
+            seller_res = sb.table("users").select("email, phone, name").eq("id", seller_id).limit(1).execute()
+            if seller_res.data:
+                seller = seller_res.data[0]
+                book_title = item.get("title", "Unknown Book")
+                
+                # Send Real Email
+                try:
+                    msg = MIMEText(
+                        f"Hi {seller.get('name', 'Seller')},\n\n"
+                        f"A new order has been placed for your book: '{book_title}'.\n\n"
+                        f"Quantity: {item.get('quantity', 1)}\n"
+                        f"Total Price: Rs.{item.get('price')}\n"
+                        f"Customer Name: {user.get('name')}\n"
+                        f"Delivery Address: {body.address}\n\n"
+                        f"Please log in to your Seller Dashboard to update the order status."
+                    )
+                    msg["Subject"] = f"New Order Received: {book_title}"
+                    msg["From"] = os.environ.get("SMTP_USER", "noreply@bookbridge.local")
+                    msg["To"] = seller.get("email")
+
+                    with smtplib.SMTP(os.environ.get("SMTP_HOST", "localhost"), int(os.environ.get("SMTP_PORT", "1025"))) as server:
+                        smtp_user = os.environ.get("SMTP_USER")
+                        smtp_pass = os.environ.get("SMTP_PASS")
+                        if smtp_user and smtp_pass:
+                            server.starttls()
+                            server.login(smtp_user, smtp_pass)
+                        server.send_message(msg)
+                except Exception as e:
+                    logger.error(f"Failed to send order notification email to seller: {e}")
+
+                # Mock WhatsApp
+                if seller.get('phone'):
+                    print(f"[WHATSAPP] -> To: {seller.get('phone')} | BookBridge India Notification")
+                    print(f"           -> New Order: '{book_title}' | Price: Rs.{item.get('price')}")
+    
     return res.data[0]
 
 
@@ -847,7 +949,7 @@ def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_c
         raise HTTPException(404, "Order not found")
     o = res.data[0]
     is_seller = any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))
-    if not is_seller and user["role"] not in ("admin", "super_admin"):
+    if not is_seller and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
     sb.table("orders").update({"status": body.status}).eq("id", order_id).execute()
     return {"ok": True, "status": body.status}

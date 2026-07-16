@@ -175,7 +175,7 @@ async def get_current_user(request: Request) -> dict:
 
 def require_role(*roles):
     async def dep(user: dict = Depends(get_current_user)):
-        if user.get("role") not in roles and user.get("role") not in ("admin", "super_admin"):
+        if user.get("role") not in roles and user.get("role") != "admin":
             raise HTTPException(403, "Insufficient permissions")
         return user
     return dep
@@ -209,7 +209,7 @@ class RegisterIn(BaseModel):
     name: str = Field(..., min_length=2)
     role: str = "user"
 
-class AssignSuperAdminIn(BaseModel):
+class ResetPasswordIn(BaseModel):
     email: EmailStr
 
 class UserUpdateIn(BaseModel):
@@ -438,6 +438,32 @@ def login(body: LoginIn):
             raise e
         raise HTTPException(500, f"Database Error: {str(e)}")
 
+
+@api.post("/auth/reset-password")
+def reset_password(body: ResetPasswordIn):
+    try:
+        sb.auth.reset_password_email(body.email, options={"redirect_to": "http://localhost:3000/reset-password"})
+        return {"ok": True, "message": "Password reset email sent."}
+    except Exception as e:
+        logger.error(f"Reset password failed for {body.email}: {e}", exc_info=True)
+        
+        status_code = 400
+        err_msg = str(e)
+        
+        if hasattr(e, "message") and getattr(e, "message"):
+            err_msg = getattr(e, "message")
+        if hasattr(e, "status") and getattr(e, "status"):
+            status_code = getattr(e, "status")
+            
+        # Detect common SMTP / configuration / rate limiting errors
+        if "Error sending recovery email" in err_msg or "rate limit" in err_msg.lower():
+            err_msg = (
+                f"{err_msg}. Please ensure your Email Provider settings are enabled "
+                f"in the Supabase Dashboard, or verify if the default Supabase SMTP rate limit "
+                f"(3 emails per hour) has been exceeded."
+            )
+            
+        raise HTTPException(status_code=status_code, detail=err_msg)
 
 @api.get("/auth/me")
 def me(user: dict = Depends(get_current_user)):
@@ -758,15 +784,7 @@ def update_user(user_id: str, body: UserUpdateIn, user: dict = Depends(require_r
     res = sb.table("users").update(updates).eq("id", user_id).execute()
     return res.data[0] if res.data else {}
 
-@api.put("/admin/assign_super_admin")
-def assign_super_admin(body: AssignSuperAdminIn, user: dict = Depends(require_role("super_admin", "admin"))):
-    email = body.email.lower()
-    res = sb.table("users").select("id").eq("email", email).limit(1).execute()
-    if not res.data:
-        raise HTTPException(404, "User not found")
-    target_id = res.data[0]["id"]
-    sb.table("users").update({"role": "super_admin"}).eq("id", target_id).execute()
-    return {"ok": True, "message": "Super Admin role granted"}
+
 
 @api.put("/admin/books/{book_id}")
 def update_book(book_id: str, body: BookUpdateIn, user: dict = Depends(require_role("admin"))):
@@ -818,6 +836,28 @@ def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
     }
     res = sb.table("orders").insert(order_row).execute()
     sb.table("cart").delete().eq("user_id", user["id"]).execute()
+    
+    # -------------------------------------------------------------
+    # Notification Logic (Mocked)
+    # In a real app, this would use SendGrid/Resend for Email and Twilio/UltraMsg for WhatsApp
+    # -------------------------------------------------------------
+    for item in order_items:
+        seller_id = item.get("seller_id")
+        if seller_id:
+            seller_res = sb.table("users").select("email, phone").eq("id", seller_id).limit(1).execute()
+            if seller_res.data:
+                seller = seller_res.data[0]
+                book_title = item.get("title", "Unknown Book")
+                # Mock Email
+                print(f"[EMAIL] -> To: {seller.get('email')} | Subject: New Order Received!")
+                print(f"        -> A new order has been placed for your book: '{book_title}'.")
+                print(f"        -> Customer Name: {user.get('name')}")
+                print(f"        -> Delivery Address: {body.address}")
+                # Mock WhatsApp
+                if seller.get('phone'):
+                    print(f"[WHATSAPP] -> To: {seller.get('phone')} | BookBridge India Notification")
+                    print(f"           -> New Order: '{book_title}' | Price: Rs.{item.get('price')}")
+    
     return res.data[0]
 
 
@@ -847,7 +887,7 @@ def update_status(order_id: str, body: OrderStatusIn, user: dict = Depends(get_c
         raise HTTPException(404, "Order not found")
     o = res.data[0]
     is_seller = any(it.get("seller_id") == user["id"] for it in (o.get("items") or []))
-    if not is_seller and user["role"] not in ("admin", "super_admin"):
+    if not is_seller and user["role"] != "admin":
         raise HTTPException(403, "Not allowed")
     sb.table("orders").update({"status": body.status}).eq("id", order_id).execute()
     return {"ok": True, "status": body.status}

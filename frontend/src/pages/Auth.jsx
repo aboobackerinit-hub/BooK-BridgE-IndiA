@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 const AuthLayout = ({ children }) => (
   <div className="min-h-screen paper-bg grid lg:grid-cols-2">
@@ -41,6 +42,7 @@ export const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
@@ -63,6 +65,52 @@ export const LoginPage = () => {
     } finally { setLoading(false); }
   };
 
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post("/auth/reset-password", { email });
+      toast.success("Password reset email sent! Please check your inbox.");
+      setIsResetting(false);
+    } catch (err) {
+      if (!err.response) {
+        toast.error("Network error: Could not connect to the backend server. Is it running?");
+      } else {
+        toast.error(err.response?.data?.detail || "Failed to send reset email");
+      }
+    } finally { setLoading(false); }
+  };
+
+  if (isResetting) {
+    return (
+      <AuthLayout>
+        <div className="mb-8 lg:hidden flex items-center gap-2">
+          <div className="w-10 h-10 rounded-xl spine flex items-center justify-center"><BookOpen className="w-5 h-5 text-white" /></div>
+          <div className="font-serif font-bold text-xl">BookBridge India</div>
+        </div>
+        <div className="mb-8">
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Reset Password</div>
+          <h2 className="font-serif text-4xl">Enter your email</h2>
+        </div>
+        <form onSubmit={handleReset} className="space-y-4">
+          <div>
+            <Label htmlFor="reset-email">Email</Label>
+            <Input id="reset-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com" />
+          </div>
+          <Button type="submit" disabled={loading} className="w-full rounded-full h-11">
+            {loading ? "Sending link..." : "Send Reset Link"}
+          </Button>
+          <div className="mt-4 text-sm text-center">
+            <button type="button" onClick={() => setIsResetting(false)} className="text-primary hover:underline">
+              Back to Login
+            </button>
+          </div>
+        </form>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout>
       <div className="mb-8 lg:hidden flex items-center gap-2">
@@ -80,7 +128,12 @@ export const LoginPage = () => {
             data-testid="login-email-input" placeholder="you@example.com" />
         </div>
         <div>
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <button type="button" onClick={() => setIsResetting(true)} className="text-xs text-primary hover:underline">
+              Forgot Password?
+            </button>
+          </div>
           <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
             data-testid="login-password-input" placeholder="••••••••" />
         </div>
