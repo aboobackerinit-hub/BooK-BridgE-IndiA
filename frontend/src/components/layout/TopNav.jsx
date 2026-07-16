@@ -39,7 +39,7 @@ const TopNav = () => {
   }, []);
 
   useEffect(() => {
-    if (!user?.notifications_enabled) { setNotif({ unread_messages: 0, recent: [], pending_orders: 0 }); return; }
+    if (user?.notifications_enabled === false) { setNotif({ unread_messages: 0, recent: [], pending_orders: 0 }); return; }
     const loadNotif = async () => {
       try {
         const { data } = await api.get("/notifications");
@@ -116,18 +116,44 @@ const TopNav = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          {user?.notifications_enabled && (notif.unread_messages > 0 || notif.pending_orders > 0) && (
-            <button
-              onClick={() => navigate("/chat")}
-              className="relative w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
-              data-testid="notif-bell-btn"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
-                {notif.unread_messages + notif.pending_orders}
-              </span>
-            </button>
+          {user?.notifications_enabled !== false && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                  data-testid="notif-bell-btn"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {(notif.unread_messages > 0 || notif.pending_orders > 0) && (
+                    <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
+                      {notif.unread_messages + notif.pending_orders}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notif.pending_orders > 0 && (
+                  <DropdownMenuItem onClick={() => navigate(dashboardRoute(user?.role) || "/store")}>
+                    <Package className="w-4 h-4 mr-2 text-primary" />
+                    <span>{notif.pending_orders} pending order(s)</span>
+                  </DropdownMenuItem>
+                )}
+                {notif.unread_messages > 0 && (
+                  <DropdownMenuItem onClick={() => navigate("/chat")}>
+                    <MessageCircle className="w-4 h-4 mr-2 text-primary" />
+                    <span>{notif.unread_messages} unread message(s)</span>
+                  </DropdownMenuItem>
+                )}
+                {notif.pending_orders === 0 && notif.unread_messages === 0 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No new notifications
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

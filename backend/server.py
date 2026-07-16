@@ -915,6 +915,21 @@ def place_order(body: OrderIn, user: dict = Depends(get_current_user)):
                 except Exception as e:
                     logger.error(f"Failed to send order notification email to seller: {e}")
 
+                # Send In-App Chat Notification
+                try:
+                    tid = thread_id_of(user["id"], seller_id)
+                    chat_text = f"📚 System Notification: I have placed an order for your book '{book_title}' (Qty: {item.get('quantity', 1)}). Please check your dashboard!"
+                    sb.table("messages").insert({
+                        "thread_id": tid,
+                        "from_user_id": user["id"],
+                        "from_user_name": user["name"],
+                        "to_user_id": seller_id,
+                        "text": chat_text,
+                        "read": False,
+                    }).execute()
+                except Exception as e:
+                    logger.error(f"Failed to send in-app chat notification: {e}")
+
                 # Mock WhatsApp
                 if seller.get('phone'):
                     print(f"[WHATSAPP] -> To: {seller.get('phone')} | BookBridge India Notification")
