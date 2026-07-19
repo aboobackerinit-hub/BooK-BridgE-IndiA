@@ -1,7 +1,5 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "installCommand": "echo 'Dependencies installed during build step'",
   "outputDirectory": "frontend/.next"
 }
