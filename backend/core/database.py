@@ -26,7 +26,11 @@ def init_firebase():
     try:
         cred = None
         if FIREBASE_SERVICE_ACCOUNT_JSON_PATH:
-            cred = credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_JSON_PATH)
+            if FIREBASE_SERVICE_ACCOUNT_JSON_PATH.startswith("{"):
+                import json
+                cred = credentials.Certificate(json.loads(FIREBASE_SERVICE_ACCOUNT_JSON_PATH))
+            else:
+                cred = credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_JSON_PATH)
         elif FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY and FIREBASE_PROJECT_ID:
             cred = credentials.Certificate({
                 "type": "service_account",
