@@ -1,23 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && CI=false npm run build",
-  "outputDirectory": "frontend/build",
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.9"
-    }
-  },
-  "framework": null,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/((?!api).*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
-    }
-  ]
+  "framework": "nextjs",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "installCommand": "echo 'Dependencies installed during build step'",
+  "outputDirectory": "frontend/.next"
 }

@@ -16,8 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the backend source code into the container
 COPY backend/ ./backend/
 
-# Expose the port (Railway provides the PORT environment variable)
-EXPOSE $PORT
+# (Railway exposes the PORT environment variable automatically)
 
 # Define the start command
 # Use sh -c to ensure environment variables are expanded
