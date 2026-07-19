@@ -1,0 +1,26 @@
+[
+  {
+    "name": "avatars",
+    "id": null,
+    "updated_at": null,
+    "created_at": null,
+    "last_accessed_at": null,
+    "metadata": null
+  },
+  {
+    "name": "books",
+    "id": null,
+    "updated_at": null,
+    "created_at": null,
+    "last_accessed_at": null,
+    "metadata": null
+  },
+  {
+    "name": "posts",
+    "id": null,
+    "updated_at": null,
+    "created_at": null,
+    "last_accessed_at": null,
+    "metadata": null
+  }
+]

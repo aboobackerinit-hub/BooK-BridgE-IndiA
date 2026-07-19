@@ -1,0 +1,322 @@
+[
+  {
+    "id": "af1e8754-337c-41bf-8623-99935a0b79d2",
+    "thread_id": "ee756aed-9e41-449e-bb1b-81179c529ac5::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "ee756aed-9e41-449e-bb1b-81179c529ac5",
+    "from_user_name": "hhhhhhhhhhh",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "hi",
+    "read": true,
+    "created_at": "2026-07-14T19:07:38.804887+00:00"
+  },
+  {
+    "id": "a61cae94-41a6-4e26-aa6c-f4dc2e189494",
+    "thread_id": "ee756aed-9e41-449e-bb1b-81179c529ac5::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_name": "aboobacker sidhiq",
+    "to_user_id": "ee756aed-9e41-449e-bb1b-81179c529ac5",
+    "text": "hello",
+    "read": true,
+    "created_at": "2026-07-14T19:08:01.622978+00:00"
+  },
+  {
+    "id": "7ff26382-f5d7-4942-a459-7f1bcb5cd293",
+    "thread_id": "72aea9d3-bdf3-4a94-9359-12d95f8f3915::875b0209-b25f-45cb-af50-95479c398520",
+    "from_user_id": "875b0209-b25f-45cb-af50-95479c398520",
+    "from_user_name": "ANAS N F",
+    "to_user_id": "72aea9d3-bdf3-4a94-9359-12d95f8f3915",
+    "text": "Hello",
+    "read": false,
+    "created_at": "2026-07-15T18:52:39.535488+00:00"
+  },
+  {
+    "id": "5282cfa4-c927-4e2b-900f-139d566bcdb9",
+    "thread_id": "72aea9d3-bdf3-4a94-9359-12d95f8f3915::875b0209-b25f-45cb-af50-95479c398520",
+    "from_user_id": "875b0209-b25f-45cb-af50-95479c398520",
+    "from_user_name": "ANAS N F",
+    "to_user_id": "72aea9d3-bdf3-4a94-9359-12d95f8f3915",
+    "text": "Hello",
+    "read": false,
+    "created_at": "2026-07-15T18:52:40.593418+00:00"
+  },
+  {
+    "id": "69bdbed6-374f-462a-a95b-5fe25243f790",
+    "thread_id": "bb6381c1-ae50-4e91-a274-f86601081eef::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_name": "Kashif khan",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "Hi",
+    "read": true,
+    "created_at": "2026-07-14T19:13:58.167603+00:00"
+  },
+  {
+    "id": "1a70d408-6f2d-4bb6-a1e9-b732c0994a0a",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "hello",
+    "read": false,
+    "created_at": "2026-07-16T15:12:22.977779+00:00"
+  },
+  {
+    "id": "d89c5147-d34c-4759-8736-1d046440c6ae",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "Welcome to  you our ustad of Malappuram ",
+    "read": true,
+    "created_at": "2026-07-16T15:29:17.291126+00:00"
+  },
+  {
+    "id": "ab4ae211-c0e3-4b68-8a2a-0cacf4792a64",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Aa",
+    "read": true,
+    "created_at": "2026-07-16T15:29:57.933248+00:00"
+  },
+  {
+    "id": "1d9ebea3-1dc8-4e30-aceb-269830f36708",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "Engane nd",
+    "read": true,
+    "created_at": "2026-07-16T15:30:09.410211+00:00"
+  },
+  {
+    "id": "64260de7-0c30-4615-a512-b12bd5615305",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Set",
+    "read": true,
+    "created_at": "2026-07-16T15:30:17.213944+00:00"
+  },
+  {
+    "id": "ae84e029-a34c-48d4-bf26-20ff6763724c",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "\u0d15\u0d4a\u0d33\u0d4d\u0d33\u0d3e\u0d2e\u0d4b",
+    "read": true,
+    "created_at": "2026-07-16T15:30:18.68226+00:00"
+  },
+  {
+    "id": "b241a881-1c66-4538-a737-b548301da313",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Ithe inkk thanaallea..",
+    "read": true,
+    "created_at": "2026-07-16T15:30:40.65021+00:00"
+  },
+  {
+    "id": "f0e1a115-0bf7-4b48-ad17-f84a35ea79ee",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "4,5 \u0d26\u0d3f\u0d35\u0d38\u0d24\u0d4d\u0d24\u0d46 \u0d05\u0d27\u0d4d\u0d35\u0d3e\u0d28\u0d02\ud83e\udd71",
+    "read": true,
+    "created_at": "2026-07-16T15:30:45.55439+00:00"
+  },
+  {
+    "id": "9b2fe932-1fcf-466b-bbbc-2ab8626e5be4",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Hm",
+    "read": true,
+    "created_at": "2026-07-16T15:31:06.926761+00:00"
+  },
+  {
+    "id": "c6353fd6-f5cc-47d6-8d91-a4bfd0450136",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "Eyy ank vere ndakka",
+    "read": true,
+    "created_at": "2026-07-16T15:31:11.421061+00:00"
+  },
+  {
+    "id": "89277393-408e-487d-9118-288f0e7b21c1",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Aa",
+    "read": true,
+    "created_at": "2026-07-16T15:31:21.682114+00:00"
+  },
+  {
+    "id": "9c29bc27-cc8e-4c6b-be77-5a96d10cd6a1",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_name": "Murshid ",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Avvarr order cheythathe okke arriyaan pato..",
+    "read": true,
+    "created_at": "2026-07-16T15:31:55.232182+00:00"
+  },
+  {
+    "id": "99113e7d-ccca-4d63-9349-37f574f90bd9",
+    "thread_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468",
+    "from_user_name": "Basith",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "Hy",
+    "read": true,
+    "created_at": "2026-07-14T20:36:37.895855+00:00"
+  },
+  {
+    "id": "7b6bdd40-fb5d-4364-b9cc-100efd57d14a",
+    "thread_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468",
+    "from_user_name": "Basith",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "Hy",
+    "read": true,
+    "created_at": "2026-07-14T20:36:38.542151+00:00"
+  },
+  {
+    "id": "2b26d7ca-3cfc-445a-8cf1-698b17e8ee3d",
+    "thread_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "0346f2c6-9cfd-4365-8905-9fe0235b6468",
+    "from_user_name": "Basith",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "Hy",
+    "read": true,
+    "created_at": "2026-07-14T20:36:39.875125+00:00"
+  },
+  {
+    "id": "708c5dea-d86f-4be7-ba7d-8a9c0c312ab0",
+    "thread_id": "39b3204e-0917-4598-ae19-c5a06ee70054::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "39b3204e-0917-4598-ae19-c5a06ee70054",
+    "from_user_name": "Ashik",
+    "to_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "text": "Hello",
+    "read": true,
+    "created_at": "2026-07-14T19:18:49.732191+00:00"
+  },
+  {
+    "id": "faf7e613-9148-4784-bdbc-f907431b8b59",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::6b52380d-02ae-40cf-bbad-4351577181ca",
+    "from_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "from_user_name": "Aboobacker ",
+    "to_user_id": "6b52380d-02ae-40cf-bbad-4351577181ca",
+    "text": "Pattum ",
+    "read": true,
+    "created_at": "2026-07-16T16:01:49.616613+00:00"
+  },
+  {
+    "id": "e842a1ee-8339-4676-a549-53a0452b340b",
+    "thread_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "Hello",
+    "read": false,
+    "created_at": "2026-07-18T15:41:16.578114+00:00"
+  },
+  {
+    "id": "7781e88f-97bf-425c-b4f4-bee848156dfc",
+    "thread_id": "2da8adb6-6c8c-4598-81f9-4093623d1a3c::8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "2da8adb6-6c8c-4598-81f9-4093623d1a3c",
+    "text": "Hiiiii",
+    "read": false,
+    "created_at": "2026-07-18T15:41:42.992237+00:00"
+  },
+  {
+    "id": "0ad1f6fb-e0a1-42e9-9455-71535aef206e",
+    "thread_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "I love you \ud83d\ude0d ",
+    "read": false,
+    "created_at": "2026-07-18T15:47:44.493635+00:00"
+  },
+  {
+    "id": "b65c7d3b-bbb3-4929-a295-67d97e0302b2",
+    "thread_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "I love you \ud83d\ude0d ",
+    "read": false,
+    "created_at": "2026-07-18T15:47:44.774321+00:00"
+  },
+  {
+    "id": "fe52e6aa-d57e-42a1-ba52-a44499c9f5ca",
+    "thread_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "\u0d12\u0d30\u0d41 500 marikkan undo?",
+    "read": false,
+    "created_at": "2026-07-18T15:48:16.592984+00:00"
+  },
+  {
+    "id": "1b224fe1-0998-428f-8174-43c49e451130",
+    "thread_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e::bb6381c1-ae50-4e91-a274-f86601081eef",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "Undo",
+    "read": false,
+    "created_at": "2026-07-18T15:49:04.626821+00:00"
+  },
+  {
+    "id": "6e5e99cb-55e2-49f2-97ab-5211f1c206ac",
+    "thread_id": "bb6381c1-ae50-4e91-a274-f86601081eef::fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_id": "fe1f02bd-95ae-4734-82a8-65337b2fee43",
+    "from_user_name": "aboobacker sidhiq",
+    "to_user_id": "bb6381c1-ae50-4e91-a274-f86601081eef",
+    "text": "hello",
+    "read": true,
+    "created_at": "2026-07-16T04:52:17.655262+00:00"
+  },
+  {
+    "id": "60a0b13d-0e62-4057-8f2e-bc4ee2df604e",
+    "thread_id": "5f9241ca-96c6-451c-b42a-aa60c1537cdf::8dacabf0-1cba-435f-895c-b54c5e9f740a",
+    "from_user_id": "8dacabf0-1cba-435f-895c-b54c5e9f740a",
+    "from_user_name": "Aditi",
+    "to_user_id": "5f9241ca-96c6-451c-b42a-aa60c1537cdf",
+    "text": "TEST_Message: Hello! 190a8a",
+    "read": false,
+    "created_at": "2026-07-18T17:35:32.700296+00:00"
+  },
+  {
+    "id": "c1d9b01b-5994-41eb-87de-9456e9eb4c0d",
+    "thread_id": "5f9241ca-96c6-451c-b42a-aa60c1537cdf::8dacabf0-1cba-435f-895c-b54c5e9f740a",
+    "from_user_id": "8dacabf0-1cba-435f-895c-b54c5e9f740a",
+    "from_user_name": "Aditi",
+    "to_user_id": "5f9241ca-96c6-451c-b42a-aa60c1537cdf",
+    "text": "Test message",
+    "read": false,
+    "created_at": "2026-07-18T17:35:40.386483+00:00"
+  },
+  {
+    "id": "26634e43-5c64-4125-948d-0df4dd6e4737",
+    "thread_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6::8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_id": "8cbec606-a364-4d2d-adfd-be51defd9e7e",
+    "from_user_name": "Muhammad Faizal Muhammad Faizal",
+    "to_user_id": "09995edd-2ff0-47af-a1dd-e0f606d098e6",
+    "text": "Hi",
+    "read": true,
+    "created_at": "2026-07-18T15:41:30.52499+00:00"
+  }
+]

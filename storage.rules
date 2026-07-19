@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // For BookBridge, images are only uploaded by authenticated users via Backend Admin SDK
+      // The backend uses the Admin SDK which bypasses these rules anyway.
+      // But just in case we allow direct client uploads in the future, we require auth.
+      allow read, write: if request.auth != null;
+    }
+  }
+}
