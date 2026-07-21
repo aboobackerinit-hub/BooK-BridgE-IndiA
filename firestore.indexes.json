@@ -12,6 +12,7 @@
       "collectionGroup": "books",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "approved", "order": "ASCENDING" },
         { "fieldPath": "category", "order": "ASCENDING" },
         { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
@@ -28,31 +29,8 @@
       "collectionGroup": "books",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "approved", "order": "ASCENDING" },
         { "fieldPath": "featured", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "books",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "title_lower", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "orders",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "orders",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "seller_ids", "arrayConfig": "CONTAINS" },
         { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
     },
@@ -71,6 +49,23 @@
         { "fieldPath": "thread_id", "order": "ASCENDING" },
         { "fieldPath": "created_at", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "seller_ids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
     }
-  ]
+  ],
+  "fieldOverrides": []
 }

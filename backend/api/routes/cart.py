@@ -3,7 +3,6 @@ from backend.core.database import get_db
 from firebase_admin import firestore
 from backend.api.dependencies import get_current_user
 from backend.models.schemas import CartItemIn
-from backend.services.storage import attach_signed_urls
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
@@ -29,7 +28,6 @@ def get_cart(user: dict = Depends(get_current_user)):
             for bdoc in bdocs:
                 b = bdoc.to_dict()
                 b["id"] = bdoc.id
-                attach_signed_urls(b)
                 books_map[b["id"]] = b
                 
     for i in items:

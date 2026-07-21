@@ -148,6 +148,7 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
     background_tasks.add_task(_post_order_creation_tasks, order_id, list(seller_ids), user, book_titles)
     
     order_row["id"] = order_id
+    order_row.pop("created_at", None)
     return order_row
 
 @router.get("")

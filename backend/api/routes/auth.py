@@ -3,7 +3,7 @@ import os
 import requests
 from fastapi import APIRouter, HTTPException, Depends
 import firebase_admin
-from firebase_admin import auth as firebase_auth, firestore
+from firebase_admin import auth as firebase_auth
 from backend.core.database import get_db
 from backend.core.config import FIREBASE_API_KEY
 from backend.core.security import gen_bbid, clean_user_dict, get_user_by_id
@@ -38,6 +38,7 @@ def register(body: RegisterIn):
             raise HTTPException(400, "Could not create user account")
 
         # Save to Firestore
+        from firebase_admin import firestore
         db = get_db()
         row = {
             "email": email,
@@ -62,8 +63,14 @@ def register(body: RegisterIn):
         )
         if res.status_code == 200:
             token = res.json().get("idToken")
+            
+            # Remove Sentinel object so FastAPI can serialize to JSON
+            row.pop("created_at", None)
+            
             return {"token": token, "user": clean_user_dict(row)}
         else:
+            logger.error(f"Firebase REST API Error during register: {res.status_code} {res.text}")
+            row.pop("created_at", None)
             # Fallback if API key is invalid/missing during migration
             return {"token": "firebase_token_pending", "user": clean_user_dict(row)}
             
@@ -92,7 +99,7 @@ def login(body: LoginIn):
         )
         
         if res.status_code != 200:
-            logger.error(f"Identity Toolkit login failed: status={res.status_code}, body={res.text[:500]}")
+            logger.error(f"Firebase REST API Error during login: {res.status_code} {res.text}")
             raise HTTPException(401, "Invalid email or password")
             
         data = res.json()

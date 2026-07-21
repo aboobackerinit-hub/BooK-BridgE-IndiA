@@ -118,6 +118,7 @@ def _send_internal(user: dict, to_user_id: str, text: str, msg_type: str, backgr
         pass
     
     row["id"] = new_msg_ref.id
+    row.pop("created_at", None)
     return row
 
 @router.post("/{other_user_id}/typing")

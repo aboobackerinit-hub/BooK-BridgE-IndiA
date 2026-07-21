@@ -5,8 +5,8 @@ from pathlib import Path
 
 # Load .env and .env.local for local dev; Vercel injects env vars natively.
 # We traverse up to find .env files
-load_dotenv(Path(__file__).parent.parent.parent / '.env')
-load_dotenv(Path(__file__).parent.parent.parent / '.env.local')
+load_dotenv(Path(__file__).parent.parent / '.env')
+load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 # Firebase Configuration
 FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY") or ""
