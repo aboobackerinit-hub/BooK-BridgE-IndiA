@@ -1,8 +1,35 @@
-fastapi>=0.111.0
-python-dotenv==1.1.0
-pydantic>=2.7.1
-email-validator>=2.1.1
-supabase>=2.10.0
-PyJWT==2.8.0
-python-multipart>=0.0.9
-uvicorn==0.27.1
+# BookBridge India — Backend Dependencies
+# Core framework
+fastapi>=0.110.0
+uvicorn>=0.25.0
+starlette>=0.37.0
+
+# Data validation
+pydantic[email]>=2.0.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# File uploads
+python-multipart>=0.0.20
+
+# Firebase Admin SDK
+firebase-admin>=6.0.0
+
+# HTTP client (for Firebase REST API)
+requests>=2.31.0
+
+# Image upload service
+cloudinary>=1.40.0
+
+# JWT handling
+PyJWT>=2.0.0
+
+# Image processing (compression before upload)
+Pillow>=10.0.0
+
+# Password hashing (legacy support)
+bcrypt>=4.0.0
+
+# Email validation
+email-validator>=2.0.0
