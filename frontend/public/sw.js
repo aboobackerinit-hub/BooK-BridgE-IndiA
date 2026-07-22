@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bookbridge-v1';
+const CACHE_NAME = 'bookbridge-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -27,11 +27,25 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) return;
+  
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        return response || fetch(event.request).catch(() => {
-          if (event.request.destination === 'document') {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          if (event.request.destination === 'document' || event.request.mode === 'navigate') {
             return caches.match('/index.html');
           }
         });
