@@ -89,32 +89,61 @@ def upload_image(file_bytes: bytes, content_type: str, folder: str = "general") 
 
 async def upload_fastapi_file(file, folder: str = "general") -> str:
     """
-    Upload a FastAPI UploadFile to Cloudinary.
-
-    Args:
-        file: FastAPI UploadFile object.
-        folder: Cloudinary folder.
-
-    Returns:
-        Cloudinary secure HTTPS URL.
+    Upload a FastAPI UploadFile to Cloudinary directly via stream.
+    Validates MIME type and enforces size limits.
     """
-    contents = await file.read()
-    content_type = file.content_type or "image/jpeg"
-    return upload_image(contents, content_type, folder)
+    from fastapi import HTTPException
+    
+    # 1. Validate MIME type
+    allowed_types = ["image/jpeg", "image/png", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=415, detail="Unsupported media type. Only JPEG, PNG, and WebP are allowed.")
+        
+    # 2. Enforce upload size limits
+    # Profile images (avatars folder): 5 MB (5 * 1024 * 1024 bytes)
+    # Book/Post images: 10 MB (10 * 1024 * 1024 bytes)
+    max_size = 5 * 1024 * 1024 if folder == "avatars" else 10 * 1024 * 1024
+    
+    if hasattr(file, "size") and file.size is not None:
+        if file.size > max_size:
+            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB.")
+    else:
+        # Fallback if size attribute is missing
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+        if size > max_size:
+            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB.")
+
+    # 3. Stream to Cloudinary
+    _ensure_configured()
+    if not _cloudinary_configured:
+        logger.warning("Cloudinary not configured; cannot upload image.")
+        return ""
+
+    try:
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            file.file,
+            folder=f"bookbridge/{folder}",
+            resource_type="image",
+            unique_filename=True,
+            overwrite=False,
+            quality="auto",
+            fetch_format="auto",
+        )
+        secure_url = result.get("secure_url", "")
+        logger.info(f"Cloudinary upload success: {secure_url[:80]}...")
+        return secure_url
+    except Exception as e:
+        logger.error(f"Cloudinary upload failed: {e}")
+        return ""
 
 
 def upload_base64_image(data_url: str, folder: str = "general") -> str:
     """
     Upload a base64 data URL to Cloudinary (backward compatibility).
-
-    If the input is not a data URL, returns it as-is (it may already be a URL).
-
-    Args:
-        data_url: Base64 data URL string (e.g., 'data:image/jpeg;base64,...').
-        folder: Cloudinary folder.
-
-    Returns:
-        Cloudinary secure HTTPS URL, or the original string if not a data URL.
+    Enforces MIME type and size limits.
     """
     if not data_url:
         return data_url
@@ -126,6 +155,24 @@ def upload_base64_image(data_url: str, folder: str = "general") -> str:
     # Not a data URL — return as-is
     if not data_url.startswith("data:image/"):
         return data_url
+        
+    from fastapi import HTTPException
+    
+    # 1. Validate MIME type
+    header = data_url.split(';')[0]
+    mime_type = header.replace('data:', '')
+    allowed_types = ["image/jpeg", "image/png", "image/webp"]
+    if mime_type not in allowed_types:
+        raise HTTPException(status_code=415, detail="Unsupported media type. Only JPEG, PNG, and WebP are allowed.")
+        
+    # 2. Enforce upload size limits
+    # A base64 string length relates to byte size by: bytes = (len(string) * 3) / 4
+    raw_b64 = data_url.split(',', 1)[-1] if ',' in data_url else data_url
+    approx_size = (len(raw_b64) * 3) / 4
+    max_size = 5 * 1024 * 1024 if folder == "avatars" else 10 * 1024 * 1024
+    
+    if approx_size > max_size:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB.")
 
     _ensure_configured()
     if not _cloudinary_configured:
@@ -134,8 +181,6 @@ def upload_base64_image(data_url: str, folder: str = "general") -> str:
 
     try:
         import cloudinary.uploader
-
-        # Cloudinary accepts data URIs directly
         result = cloudinary.uploader.upload(
             data_url,
             folder=f"bookbridge/{folder}",

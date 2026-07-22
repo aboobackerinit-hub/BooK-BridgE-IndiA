@@ -216,24 +216,6 @@ const TopNav = () => {
         </div>
       </div>
 
-      {/* Mobile nav */}
-      <div className="md:hidden border-t border-border px-2 py-2 flex items-center justify-around">
-        {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] ${
-              isActive ? "text-primary" : "text-muted-foreground"
-            }`
-          }>
-            <n.icon className="w-5 h-5" />
-            {n.label}
-          </NavLink>
-        ))}
-        <button onClick={() => navigate("/cart")} className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-[10px] text-muted-foreground relative">
-          <ShoppingBag className="w-5 h-5" />
-          {cartCount > 0 && <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center">{cartCount}</span>}
-          {t("cart")}
-        </button>
-      </div>
     </header>
   );
 };

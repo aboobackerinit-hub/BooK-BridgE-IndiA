@@ -143,3 +143,11 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* Mobile Optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}

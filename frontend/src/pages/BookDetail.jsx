@@ -96,31 +96,50 @@ const BookDetail = () => {
           </div>
 
           <div className="flex gap-3">
-            <Button onClick={buyNow} disabled={book.stock === 0} size="lg" className="rounded-full flex-1" data-testid="buy-now-btn">
-              <ShoppingBag className="w-4 h-4 mr-2" /> Buy Now
-            </Button>
-            <Button onClick={addToCart} variant="outline" size="lg" className="rounded-full" data-testid="add-to-cart-btn">
-              Add to Cart
-            </Button>
+            {book.owner_role === "user" ? (
+              <Button onClick={async () => {
+                try {
+                  const [creatingToast] = [toast.loading("Initiating chat...")];
+                  await api.post("/orders/chat", { book_id: id });
+                  toast.dismiss(creatingToast);
+                  navigate(`/chat/${book.owner.id}`);
+                } catch (e) {
+                  toast.error(e.response?.data?.detail || "Failed to start chat");
+                }
+              }} disabled={book.stock === 0} size="lg" className="rounded-full flex-1" data-testid="chat-buy-btn">
+                <MessageCircle className="w-4 h-4 mr-2" /> Contact Seller to Buy
+              </Button>
+            ) : (
+              <>
+                <Button onClick={buyNow} disabled={book.stock === 0} size="lg" className="rounded-full flex-1" data-testid="buy-now-btn">
+                  <ShoppingBag className="w-4 h-4 mr-2" /> Buy Now
+                </Button>
+                <Button onClick={addToCart} disabled={book.stock === 0} variant="outline" size="lg" className="rounded-full" data-testid="add-to-cart-btn">
+                  Add to Cart
+                </Button>
+              </>
+            )}
           </div>
 
           {book.owner && (
-            <Card className="p-5 flex items-center gap-4">
-              <Avatar className="w-14 h-14">
-                <AvatarFallback className="bg-primary/10 text-primary font-serif text-lg">
-                  {book.owner.name?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="font-serif font-semibold">{book.owner.name}</div>
-                <div className="text-xs font-mono text-muted-foreground">{book.owner.bbid}</div>
+            <Card className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Avatar className="w-14 h-14 shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-primary font-serif text-lg">
+                    {book.owner.name?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 sm:flex-none">
+                  <div className="font-serif font-semibold">{book.owner.name}</div>
+                  <div className="text-xs font-mono text-muted-foreground">{book.owner.bbid}</div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="rounded-full" onClick={() => navigate(`/profile/${book.owner.id}`)} data-testid="view-seller-btn">
+              <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 sm:ml-auto">
+                <Button size="sm" variant="outline" className="rounded-full flex-1 sm:flex-none" onClick={() => navigate(`/profile/${book.owner.id}`)} data-testid="view-seller-btn">
                   View Profile
                 </Button>
                 {user?.id !== book.owner.id && (
-                  <Button size="sm" className="rounded-full" onClick={startChat} data-testid="chat-seller-btn">
+                  <Button size="sm" className="rounded-full flex-1 sm:flex-none" onClick={startChat} data-testid="chat-seller-btn">
                     <MessageCircle className="w-3 h-3 mr-1" /> Chat
                   </Button>
                 )}

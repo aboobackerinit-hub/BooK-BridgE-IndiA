@@ -44,14 +44,21 @@ def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
     if not book_doc.exists:
         raise HTTPException(404, "Book not found")
         
+    b = book_doc.to_dict()
+    current_stock = b.get("stock", 0)
+        
     docs = db.collection("cart").where("user_id", "==", user["id"]).where("book_id", "==", body.book_id).limit(1).stream()
     existing = list(docs)
     
     if existing:
         doc = existing[0]
         new_qty = doc.to_dict().get("quantity", 0) + body.quantity
+        if new_qty > current_stock:
+            raise HTTPException(400, "Not enough stock available")
         db.collection("cart").document(doc.id).update({"quantity": new_qty})
     else:
+        if body.quantity > current_stock:
+            raise HTTPException(400, "Not enough stock available")
         new_ref = db.collection("cart").document()
         new_ref.set({
             "user_id": user["id"], 

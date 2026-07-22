@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from "@/components/ui/select";
@@ -60,10 +61,11 @@ const SellBookPage = () => {
         {/* Preview */}
         <div className="md:col-span-2">
           <Card className="overflow-hidden sticky top-24">
-            <div className="aspect-[3/4] bg-muted">
+            <div className="aspect-[3/4] relative bg-muted">
               {f.image_url ? (
-                <img src={f.image_url} alt="" className="w-full h-full object-cover"
-                  onError={(e) => (e.currentTarget.style.display = "none")} />
+                <div className="absolute inset-0 bg-muted flex items-center justify-center overflow-hidden">
+                  <OptimizedImage src={f.image_url} alt="" className="w-full h-full object-cover" />
+                </div>
               ) : (
                 <div className="w-full h-full spine flex items-center justify-center">
                   <BookOpen className="w-16 h-16 text-white/70" />
@@ -135,7 +137,7 @@ const SellBookPage = () => {
               </div>
               <div>
                 <Label>ISBN (optional)</Label>
-                <Input value={f.isbn} onChange={(e) => set("isbn", e.target.value)} placeholder="978..." data-testid="sell-isbn-input" />
+                <Input type="text" inputMode="numeric" value={f.isbn} onChange={(e) => set("isbn", e.target.value)} placeholder="978..." data-testid="sell-isbn-input" />
               </div>
             </div>
           </Card>
@@ -158,11 +160,11 @@ const SellBookPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Selling price (₹) *</Label>
-                <Input type="number" value={f.price} onChange={(e) => set("price", parseFloat(e.target.value) || 0)} data-testid="sell-price-input" />
+                <Input type="number" inputMode="decimal" value={f.price} onChange={(e) => set("price", parseFloat(e.target.value) || 0)} data-testid="sell-price-input" />
               </div>
               <div>
                 <Label>Available copies</Label>
-                <Input type="number" value={f.stock} onChange={(e) => set("stock", parseInt(e.target.value) || 0)} data-testid="sell-stock-input" />
+                <Input type="number" inputMode="numeric" value={f.stock} onChange={(e) => set("stock", parseInt(e.target.value) || 0)} data-testid="sell-stock-input" />
               </div>
             </div>
           </Card>

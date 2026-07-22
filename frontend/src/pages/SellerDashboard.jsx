@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -190,13 +191,17 @@ const SellerDashboard = ({ role }) => {
               {books.map((b) => (
                 <Card key={b.id} className="p-3 flex items-center gap-4">
                   <div className="w-12 h-16 rounded bg-muted overflow-hidden shrink-0">
-                    {b.image_url && <img src={b.image_url} alt="" className="w-full h-full object-cover" />}
+                    {b.image_url && <OptimizedImage src={b.image_url} alt="" className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-serif font-semibold truncate">{b.title}</div>
                     <div className="text-xs text-muted-foreground">by {b.author} · {b.category}</div>
                   </div>
-                  <div className="text-sm">Stock: <span className="font-mono">{b.stock}</span></div>
+                  <div className="text-sm flex flex-col items-end gap-1">
+                    <div>Stock: <span className="font-mono">{b.stock}</span></div>
+                    {b.stock === 0 && <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 h-4">Out of Stock</Badge>}
+                    {b.stock > 0 && b.stock <= 5 && <Badge variant="outline" className="text-orange-500 border-orange-500 text-[10px] py-0 h-4">Low Stock</Badge>}
+                  </div>
                   <div className="font-mono text-primary font-semibold w-20 text-right">₹{b.price}</div>
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setDialogOpen(true); }} data-testid={`edit-book-${b.id}`}><Edit className="w-4 h-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteBook(b.id)} className="text-destructive" data-testid={`delete-book-${b.id}`}><Trash2 className="w-4 h-4" /></Button>
@@ -224,7 +229,7 @@ const SellerDashboard = ({ role }) => {
                     <Select value={o.status} onValueChange={(v) => updateOrderStatus(o.id, v)}>
                       <SelectTrigger className="w-40" data-testid={`status-select-${o.id}`}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {(o.is_chat_order ? ["Interested", "Chat Started", "Sold", "Cancelled"] : STATUSES).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

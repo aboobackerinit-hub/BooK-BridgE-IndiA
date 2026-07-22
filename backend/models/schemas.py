@@ -114,6 +114,10 @@ class PostIn(BaseModel):
     image_url: Optional[str] = ""
     book_id: Optional[str] = None
 
+class PostUpdateIn(BaseModel):
+    text: str
+    image_url: Optional[str] = None
+
 
 class CommentIn(BaseModel):
     text: str

@@ -6,10 +6,14 @@ import { Package, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
+const CHAT_STATUSES = ["Interested", "Chat Started", "Sold", "Completed", "Cancelled"];
+
 const statusColor = (s) => {
   const map = { New: "bg-blue-100 text-blue-700", Processing: "bg-amber-100 text-amber-700",
     Packed: "bg-purple-100 text-purple-700", Shipped: "bg-indigo-100 text-indigo-700",
-    Delivered: "bg-secondary/20 text-secondary", Cancelled: "bg-destructive/10 text-destructive" };
+    Delivered: "bg-secondary/20 text-secondary", Cancelled: "bg-destructive/10 text-destructive",
+    "Interested": "bg-blue-100 text-blue-700", "Chat Started": "bg-indigo-100 text-indigo-700",
+    "Sold": "bg-purple-100 text-purple-700", "Completed": "bg-secondary/20 text-secondary" };
   return map[s] || "bg-muted";
 };
 
@@ -40,17 +44,29 @@ const OrdersPage = () => {
             </div>
             {/* Status pipeline */}
             <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
-              {STATUSES.filter((s) => s !== "Cancelled").map((s, i) => {
-                const currentIdx = STATUSES.indexOf(o.status);
+              {(o.is_chat_order ? CHAT_STATUSES : STATUSES).filter((s) => s !== "Cancelled").map((s, i) => {
+                const arr = o.is_chat_order ? CHAT_STATUSES : STATUSES;
+                const currentIdx = arr.indexOf(o.status);
                 const done = i <= currentIdx && o.status !== "Cancelled";
                 return (
                   <React.Fragment key={s}>
                     <div className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{s}</div>
-                    {i < 4 && <div className={`h-0.5 w-6 ${done && i < currentIdx ? "bg-primary" : "bg-muted"}`} />}
+                    {i < arr.length - 2 && <div className={`h-0.5 w-6 ${done && i < currentIdx ? "bg-primary" : "bg-muted"}`} />}
                   </React.Fragment>
                 );
               })}
             </div>
+            
+            {o.is_chat_order && o.status === "Sold" && (
+              <Button size="sm" onClick={async () => {
+                await api.put(`/orders/${o.id}/status`, { status: "Completed" });
+                const r = await api.get("/orders");
+                setOrders(r.data);
+              }} className="mb-4 w-full rounded-full" data-testid={`mark-completed-${o.id}`}>
+                Mark as Received
+              </Button>
+            )}
+
             <div className="space-y-2 mb-4">
               {o.items.map((it, idx) => (
                 <div key={idx} className="flex gap-3 items-center">

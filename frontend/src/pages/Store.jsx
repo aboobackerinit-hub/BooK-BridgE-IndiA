@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { Button } from "@/components/ui/button";
 import { Search, Sparkles, BookOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +17,7 @@ const BookCard = ({ book }) => (
     className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block">
     <div className="aspect-[3/4] bg-muted overflow-hidden">
       {book.image_url ? (
-        <img src={book.image_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <OptimizedImage src={book.image_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       ) : (
         <div className="w-full h-full flex items-center justify-center spine">
           <BookOpen className="w-12 h-12 text-white/80" />
@@ -71,20 +72,20 @@ const StorePage = () => {
       <button
         onClick={() => navigate("/sell")}
         data-testid="floating-sell-btn"
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-3 rounded-full shadow-lg shadow-primary/30 hover:-translate-y-0.5 transition-all"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-30 flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-3 rounded-full shadow-lg shadow-primary/30 hover:-translate-y-0.5 transition-all"
       >
         <Plus className="w-4 h-4" />
-        <span className="font-medium text-sm">Sell a Book</span>
+        <span className="font-medium text-sm hidden md:inline">Sell a Book</span>
       </button>
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl border border-border">
-        <img src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
+        <OptimizedImage src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/60 to-transparent" />
-        <div className="relative px-8 py-16 md:px-16 md:py-24 max-w-3xl text-white">
+        <div className="relative px-6 py-12 md:px-16 md:py-24 max-w-3xl text-white">
           <Badge className="bg-white/20 backdrop-blur text-white border border-white/30 mb-4">
             <Sparkles className="w-3 h-3 mr-1" aria-hidden="true" /> Discover · Read · Discuss
           </Badge>
-          <h1 className="font-serif text-4xl md:text-6xl leading-none mb-4">
+          <h1 className="font-serif text-3xl sm:text-4xl md:text-6xl leading-tight mb-4">
             Every book has a<br/>second life.
           </h1>
           <p className="text-white/80 text-lg max-w-xl mb-6">
@@ -95,10 +96,11 @@ const StorePage = () => {
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 data-testid="store-search-input"
+                type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search title, author, ISBN..."
-                className="pl-10 h-11 rounded-full bg-white/95 border-0"
+                className="pl-10 h-11 rounded-full bg-white/95 border-0 text-foreground"
               />
             </div>
             <Button type="submit" className="rounded-full h-11 px-6" data-testid="store-search-btn">Search</Button>
@@ -115,7 +117,7 @@ const StorePage = () => {
               <h2 className="font-serif text-3xl">Featured this week</h2>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
             {featured.slice(0, 5).map((b) => <BookCard key={b.id} book={b} />)}
           </div>
         </section>
@@ -146,7 +148,7 @@ const StorePage = () => {
         ) : books.length === 0 ? (
           <Card className="p-12 text-center text-muted-foreground">No books found.</Card>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" data-testid="books-grid">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6" data-testid="books-grid">
             {books.map((b) => <BookCard key={b.id} book={b} />)}
           </div>
         )}

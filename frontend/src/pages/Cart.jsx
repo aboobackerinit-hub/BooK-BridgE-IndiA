@@ -45,6 +45,8 @@ const CartPage = () => {
     setPlacing(false);
   };
 
+  const hasInsufficientStock = cart.items.some((item) => (item.book?.stock || 0) < item.quantity);
+
   return (
     <div className="grid md:grid-cols-3 gap-8">
       <div className="md:col-span-2 space-y-4">
@@ -71,6 +73,11 @@ const CartPage = () => {
                   <span className="font-mono text-primary font-semibold">₹{item.book?.price}</span>
                   <span className="text-xs text-muted-foreground">× {item.quantity}</span>
                 </div>
+                {(item.book?.stock || 0) < item.quantity && (
+                  <div className="text-xs text-destructive mt-1">
+                    {item.book?.stock === 0 ? "Out of stock" : `Only ${item.book?.stock} available`}
+                  </div>
+                )}
               </div>
               <Button variant="ghost" size="icon" onClick={() => remove(item.book_id)} className="text-destructive" data-testid={`remove-${item.book_id}`}>
                 <Trash2 className="w-4 h-4" />
@@ -116,8 +123,8 @@ const CartPage = () => {
               <span className="font-mono text-primary">₹{cart.total?.toFixed(2)}</span>
             </div>
           </div>
-          <Button onClick={placeOrder} disabled={placing || cart.items.length === 0} className="w-full rounded-full h-11" data-testid="place-order-btn">
-            {placing ? "Placing..." : "Place Order"}
+          <Button onClick={placeOrder} disabled={placing || cart.items.length === 0 || hasInsufficientStock} className="w-full rounded-full h-11" data-testid="place-order-btn">
+            {placing ? "Placing..." : hasInsufficientStock ? "Insufficient Stock" : "Place Order"}
           </Button>
         </Card>
       </div>

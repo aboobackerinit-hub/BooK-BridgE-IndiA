@@ -89,6 +89,63 @@ def delete_post(post_id: str, user: dict = Depends(get_current_user)):
     doc_ref.delete()
     return {"ok": True}
 
+from backend.models.schemas import PostUpdateIn, ReportIn
+
+@router.put("/{post_id}")
+def update_post(post_id: str, body: PostUpdateIn, user: dict = Depends(get_current_user)):
+    db = get_db()
+    doc_ref = db.collection("posts").document(post_id)
+    doc = doc_ref.get()
+    
+    if not doc.exists:
+        raise HTTPException(404, "Not found")
+    p = doc.to_dict()
+    if p.get("user_id") != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "Not allowed")
+        
+    doc_ref.update({
+        "text": body.text,
+        "image_url": body.image_url if body.image_url is not None else p.get("image_url")
+    })
+    return {"ok": True}
+
+@router.put("/{post_id}/pin")
+def pin_post(post_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") not in ["admin", "publisher", "store_owner"]:
+        raise HTTPException(403, "Not allowed to pin posts")
+        
+    db = get_db()
+    doc_ref = db.collection("posts").document(post_id)
+    doc = doc_ref.get()
+    
+    if not doc.exists:
+        raise HTTPException(404, "Not found")
+    p = doc.to_dict()
+    if p.get("user_id") != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "Not allowed to pin others posts")
+        
+    is_pinned = p.get("pinned", False)
+    doc_ref.update({"pinned": not is_pinned})
+    return {"pinned": not is_pinned}
+
+@router.post("/{post_id}/report")
+def report_post(post_id: str, body: ReportIn, user: dict = Depends(get_current_user)):
+    db = get_db()
+    doc_ref = db.collection("posts").document(post_id)
+    if not doc_ref.get().exists:
+        raise HTTPException(404, "Not found")
+        
+    report_ref = db.collection("reports").document()
+    report_ref.set({
+        "post_id": post_id,
+        "reporter_id": user["id"],
+        "reason": body.reason,
+        "description": body.description,
+        "created_at": firestore.SERVER_TIMESTAMP,
+        "status": "pending"
+    })
+    return {"ok": True}
+
 @router.post("/{post_id}/like")
 def like_post(post_id: str, user: dict = Depends(get_current_user)):
     db = get_db()
