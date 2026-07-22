@@ -9,7 +9,7 @@
     "build": "cd frontend && npm run build"
   },
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
   },
   "overrides": {
     "@pmmmwh/react-refresh-webpack-plugin": "0.5.11"
