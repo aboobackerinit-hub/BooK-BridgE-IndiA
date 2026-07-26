@@ -9,31 +9,40 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 
 const AuthLayout = ({ children }) => (
-  <div className="min-h-screen paper-bg grid lg:grid-cols-2">
-    <div className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
+  <div className="min-h-screen grid lg:grid-cols-2 relative overflow-hidden bg-background">
+    {/* Global Animated Background Gradient for the whole screen on mobile, and right side on desktop */}
+    <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-secondary/20 opacity-70 animate-pulse" style={{ animationDuration: '8s' }}></div>
+    <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-accent/30 via-background to-transparent opacity-60"></div>
+    
+    {/* Left Side Hero (Desktop only) */}
+    <div className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden shadow-2xl z-10"
       style={{
         backgroundImage: "url(https://images.unsplash.com/photo-1491841651911-c44c30c34548?w=1200)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}>
-      <div className="absolute inset-0 bg-gradient-to-br from-secondary/80 via-primary/60 to-primary/40" />
-      <div className="relative z-10 flex items-center gap-3 text-white">
-        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-lg flex items-center justify-center border border-white/30">
+      <div className="absolute inset-0 bg-gradient-to-br from-secondary/90 via-primary/70 to-primary/40 backdrop-blur-[2px]" />
+      <div className="relative z-10 flex items-center gap-3 text-white fade-up">
+        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
           <BookOpen className="w-6 h-6" />
         </div>
         <div>
-          <div className="font-serif text-2xl font-bold">BookBridge</div>
-          <div className="text-xs uppercase tracking-[0.3em] opacity-80">India</div>
+          <div className="font-serif text-2xl font-bold tracking-wide text-white drop-shadow-md">BookBridge</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">India</div>
         </div>
       </div>
-      <div className="relative z-10 text-white">
-        <h1 className="font-serif text-5xl leading-tight mb-4">Stories that<br/>travel between hands.</h1>
-        <p className="text-white/80 text-lg max-w-md">Buy, sell, review and discuss books with readers across India. From street corners of Delhi to libraries in Chennai.</p>
+      <div className="relative z-10 text-white fade-up" style={{ animationDelay: '150ms' }}>
+        <h1 className="font-serif text-5xl lg:text-6xl leading-[1.1] mb-6 drop-shadow-lg font-bold">Stories that<br/>travel between hands.</h1>
+        <p className="text-white/90 text-lg max-w-md font-medium drop-shadow leading-relaxed">Buy, sell, review and discuss books with readers across India. From street corners of Delhi to libraries in Chennai.</p>
       </div>
-      <div className="relative z-10 text-xs text-white/60 uppercase tracking-[0.2em]">A community for readers · Est. 2025</div>
+      <div className="relative z-10 text-xs text-white/70 uppercase tracking-[0.2em] font-semibold fade-up" style={{ animationDelay: '300ms' }}>A community for readers · Est. 2025</div>
     </div>
-    <div className="flex items-center justify-center p-6 md:p-12">
-      <div className="w-full max-w-md">{children}</div>
+    
+    {/* Right Side Form */}
+    <div className="flex items-center justify-center p-6 md:p-12 relative z-10 min-h-screen lg:min-h-0">
+      <div className="w-full max-w-md p-8 md:p-10 rounded-[2rem] bg-white/60 dark:bg-black/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover-lift transition-all duration-500">
+        {children}
+      </div>
     </div>
   </div>
 );
