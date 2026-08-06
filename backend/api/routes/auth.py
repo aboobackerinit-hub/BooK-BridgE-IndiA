@@ -100,15 +100,16 @@ def login(body: LoginIn):
             "password": body.password,
             "returnSecureToken": True
         }
-        api_key = FIREBASE_API_KEY or "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
         res = requests.post(
             f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
             json=login_payload
         )
         
         # If Vercel env had an invalid/blank API key, fallback to working project API key
-        if res.status_code != 200 and ("API key not valid" in res.text or "API_KEY_INVALID" in res.text):
-            api_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        if res.status_code != 200 and ("api key not valid" in res.text.lower() or "api_key_invalid" in res.text.lower()):
+            api_key = fallback_key
             res = requests.post(
                 f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
                 json=login_payload
