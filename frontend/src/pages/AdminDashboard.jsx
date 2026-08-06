@@ -77,19 +77,41 @@ const AdminDashboard = () => {
   const EditUserDialog = ({ u }) => {
     const [name, setName] = useState(u.name);
     const [role, setRole] = useState(u.role);
+    const [newPass, setNewPass] = useState("");
+    const [resetting, setResetting] = useState(false);
+
     const submit = async (e) => {
       e.preventDefault();
       try {
         await api.put(`/admin/users/${u.id}`, { name, role });
-        toast.success("User updated");
+        if (newPass.trim()) {
+          await api.put(`/admin/users/${u.id}/reset-password`, { new_password: newPass.trim() });
+          toast.success(`User details & password updated to '${newPass.trim()}'`);
+        } else {
+          toast.success("User updated");
+        }
         load();
       } catch (err) { toast.error("Failed to update user"); }
     };
+
+    const handleDirectReset = async () => {
+      const pass = newPass.trim() || "Password123!";
+      setResetting(true);
+      try {
+        const res = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: pass });
+        toast.success(res.data?.message || `Password reset to '${pass}'`);
+      } catch (err) {
+        toast.error("Failed to reset password");
+      } finally {
+        setResetting(false);
+      }
+    };
+
     return (
       <Dialog>
         <DialogTrigger asChild><Button size="sm" variant="outline">Edit</Button></DialogTrigger>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Edit User & Password</DialogTitle></DialogHeader>
           <form onSubmit={submit} className="space-y-4 mt-4">
             <div><Label>Name</Label><Input value={name} onChange={e=>setName(e.target.value)} required /></div>
             <div>
@@ -104,6 +126,23 @@ const AdminDashboard = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="pt-2 border-t border-border">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Reset User Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="New password (e.g. Password123!)"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                />
+                <Button type="button" variant="secondary" onClick={handleDirectReset} disabled={resetting}>
+                  {resetting ? "Resetting..." : "Reset Pass"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Leave blank to default to 'Password123!' when clicking Reset Pass.</p>
+            </div>
+
             <Button type="submit" className="w-full">Save Changes</Button>
           </form>
         </DialogContent>
