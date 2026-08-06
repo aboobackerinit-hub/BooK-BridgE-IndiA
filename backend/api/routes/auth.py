@@ -170,27 +170,23 @@ def login(body: LoginIn):
 @router.post("/reset-password")
 def reset_password(body: ResetPasswordIn):
     try:
-        # Use Firebase Admin to generate a reset link
-        link = firebase_auth.generate_password_reset_link(body.email)
+        email = body.email.strip().lower()
+        fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
         
-        # Alternatively, using REST API sendOobCode:
-        # requests.post(f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_API_KEY}", json={"requestType":"PASSWORD_RESET", "email":body.email})
-        
-        # We will let Firebase send the email natively via REST if we prefer, but for backward compatibility,
-        # we can just use our send_email and send the generated link.
-        db = get_db()
-        users = db.collection("users").where("email", "==", body.email).limit(1).get()
-        if not users:
-            return {"ok": True, "message": "Password reset email sent."}
-            
-        user = users[0].to_dict()
-        body_text = f"Hi {user.get('name', 'User')},\n\nPlease click the link below to reset your password:\n\n{link}\n\nThis link will expire soon."
-        send_email(body.email, "Password Reset Request", body_text)
-
-        return {"ok": True, "message": "Password reset email sent."}
+        res = requests.post(
+            f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}",
+            json={"requestType": "PASSWORD_RESET", "email": email}
+        )
+        if res.status_code != 200:
+            requests.post(
+                f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={fallback_key}",
+                json={"requestType": "PASSWORD_RESET", "email": email}
+            )
+        return {"ok": True, "message": "Password reset email sent. Please check your inbox."}
     except Exception as e:
         logger.error(f"Reset password failed: {e}")
-        return {"ok": True, "message": "Password reset email sent."} # Always succeed to prevent email enumeration
+        return {"ok": True, "message": "Password reset email sent. Please check your inbox."}
 
 @router.post("/reset-password/confirm")
 def reset_password_confirm(body: ResetPasswordConfirmIn):
