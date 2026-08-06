@@ -61,12 +61,14 @@ export const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       toast.success("Welcome back!");
       navigate("/store");
     } catch (err) {
       let msg = "Login failed";
-      if (err.response?.data?.detail) {
+      if (!err.response) {
+        msg = "Network error: Could not connect to server. Please check your internet connection.";
+      } else if (err.response?.data?.detail) {
         if (typeof err.response.data.detail === "string") msg = err.response.data.detail;
         else if (Array.isArray(err.response.data.detail)) msg = err.response.data.detail[0].msg;
       }

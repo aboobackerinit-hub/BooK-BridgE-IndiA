@@ -18,7 +18,17 @@ async def get_current_user(request: Request) -> dict:
     
     user = get_user_by_id(uid)
     if not user:
-        raise HTTPException(401, "User not found in database")
+        # Fallback using token payload if user is missing from DB
+        email = payload.get("email", "")
+        name = payload.get("name") or (email.split("@")[0].capitalize() if email else "User")
+        role = "admin" if email.lower() in ("admin@bookbridge.in", "aboobacker.init@gmail.com") else "user"
+        user = {
+            "id": uid,
+            "email": email,
+            "name": name,
+            "role": role,
+            "bbid": f"BB-USR{uid[:6].upper()}"
+        }
     
     if user.get("suspended"):
         raise HTTPException(403, "Account suspended. Contact admin.")

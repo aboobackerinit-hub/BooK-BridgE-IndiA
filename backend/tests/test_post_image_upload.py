@@ -9,7 +9,7 @@ import os
 import uuid
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8000').rstrip('/')
 USER_EMAIL = "aditi@demo.in"
 DEMO_PASSWORD = "demo123"
 

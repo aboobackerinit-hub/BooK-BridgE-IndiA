@@ -34,18 +34,53 @@ def clean_user_dict(u: dict) -> dict:
     return u
 
 def get_user_by_id(uid: str) -> Optional[dict]:
-    """Fetches a user profile from Firestore by UID."""
+    """Fetches a user profile from Firestore by UID with auto-healing fallback."""
     if not uid:
         return None
     try:
         db = get_db()
-        doc = db.collection("users").document(uid).get()
-        if doc.exists:
-            user_data = doc.to_dict()
-            user_data["id"] = doc.id
-            return user_data
+        if db:
+            doc = db.collection("users").document(uid).get()
+            if doc.exists:
+                user_data = doc.to_dict()
+                user_data["id"] = doc.id
+                return user_data
     except Exception as e:
-        logger.error(f"Error fetching user by id: {e}")
+        logger.error(f"Error fetching user by id from Firestore: {e}")
+
+    # Fallback / Auto-healing: fetch from Firebase Admin Auth if missing from Firestore
+    try:
+        fb_user = auth.get_user(uid)
+        email = fb_user.email or ""
+        name = fb_user.display_name or (email.split("@")[0].capitalize() if email else "User")
+        role = "admin" if email.lower() in ("admin@bookbridge.in", "aboobacker.init@gmail.com") else "user"
+        bbid = gen_bbid(name)
+        
+        user_data = {
+            "id": uid,
+            "email": email,
+            "name": name,
+            "role": role,
+            "bbid": bbid
+        }
+        
+        # Try creating the missing Firestore document for future calls
+        try:
+            db = get_db()
+            if db:
+                db.collection("users").document(uid).set({
+                    "email": email,
+                    "name": name,
+                    "role": role,
+                    "bbid": bbid
+                })
+        except Exception as set_err:
+            logger.warning(f"Could not auto-heal user doc in Firestore: {set_err}")
+            
+        return user_data
+    except Exception as fb_err:
+        logger.error(f"Error auto-healing user profile from Firebase Auth: {fb_err}")
+        
     return None
 
 # ==========================================
