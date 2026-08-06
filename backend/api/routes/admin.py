@@ -95,8 +95,25 @@ def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
 def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin"))):
     db = get_db()
     db.collection("users").document(user_id).delete()
-    # Ideally should delete from Auth too
+    try:
+        from firebase_admin import auth as firebase_auth
+        firebase_auth.delete_user(user_id)
+    except Exception as e:
+        logger.warning(f"Could not delete user from Firebase Auth: {e}")
     return {"ok": True}
+
+@router.put("/users/{user_id}/reset-password")
+def admin_reset_user_password(user_id: str, body: dict, user: dict = Depends(require_role("admin"))):
+    new_password = body.get("new_password") or "Password123!"
+    if len(new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    try:
+        from firebase_admin import auth as firebase_auth
+        firebase_auth.update_user(user_id, password=new_password)
+        return {"ok": True, "message": f"Password reset successfully to '{new_password}'"}
+    except Exception as e:
+        logger.error(f"Admin reset password error: {e}")
+        raise HTTPException(400, f"Could not reset password: {str(e)}")
 
 @router.put("/books/{book_id}")
 def update_book(book_id: str, body: BookUpdateIn, user: dict = Depends(require_role("admin"))):

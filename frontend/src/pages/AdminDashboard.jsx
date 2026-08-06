@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Users, User, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban } from "lucide-react";
+import { Users, User, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban, Key } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
@@ -139,6 +139,17 @@ const AdminDashboard = () => {
     );
   };
 
+  const resetUserPassword = async (u) => {
+    const newPass = window.prompt(`Enter new password for ${u.name} (${u.email}):`, "Password123!");
+    if (!newPass) return;
+    try {
+      const res = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: newPass });
+      toast.success(res.data?.message || "Password reset successfully!");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to reset password");
+    }
+  };
+
   const Stat = ({ icon: Icon, label, value, color }) => (
     <Card className="p-5">
       <div className="flex items-center gap-3">
@@ -185,6 +196,9 @@ const AdminDashboard = () => {
               <Badge variant="outline" className="capitalize">{u.role?.replace("_", " ")}</Badge>
               {u.suspended && <Badge variant="destructive">Suspended</Badge>}
               <EditUserDialog u={u} />
+              <Button size="sm" variant="outline" onClick={() => resetUserPassword(u)} data-testid={`reset-pass-${u.id}`}>
+                <Key className="w-3 h-3 mr-1" /> Reset Pass
+              </Button>
               <Button size="sm" variant="outline" onClick={() => suspendUser(u.id)} data-testid={`suspend-${u.id}`}>
                 <Ban className="w-3 h-3 mr-1" /> {u.suspended ? "Unsuspend" : "Suspend"}
               </Button>
