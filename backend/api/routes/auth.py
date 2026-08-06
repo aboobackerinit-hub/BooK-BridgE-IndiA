@@ -89,31 +89,46 @@ def register(body: RegisterIn):
 @router.post("/login")
 def login(body: LoginIn):
     email = body.email.strip().lower()
+    raw_password = body.password
+    clean_password = body.password.strip()
     
-    if not FIREBASE_API_KEY:
-        raise HTTPException(500, "Firebase Web API Key is missing. Login requires REST API configuration.")
-        
+    fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+    api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
+    
     try:
-        # First attempt with user provided password
+        # First attempt with user provided raw password
         login_payload = {
             "email": email,
-            "password": body.password,
+            "password": raw_password,
             "returnSecureToken": True
         }
-        fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
-        api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
         res = requests.post(
             f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
             json=login_payload
         )
         
-        # If Vercel env had an invalid/blank API key, fallback to working project API key
-        if res.status_code != 200 and ("api key not valid" in res.text.lower() or "api_key_invalid" in res.text.lower()):
-            api_key = fallback_key
+        # If failed and clean_password != raw_password, attempt with trimmed password
+        if res.status_code != 200 and clean_password != raw_password:
+            login_payload["password"] = clean_password
             res = requests.post(
                 f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
                 json=login_payload
             )
+
+        # If Vercel env key failed, attempt with fallback key
+        if res.status_code != 200 and ("api key not valid" in res.text.lower() or "api_key_invalid" in res.text.lower()):
+            api_key = fallback_key
+            login_payload["password"] = raw_password
+            res = requests.post(
+                f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
+                json=login_payload
+            )
+            if res.status_code != 200 and clean_password != raw_password:
+                login_payload["password"] = clean_password
+                res = requests.post(
+                    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
+                    json=login_payload
+                )
 
         # Secondary fallback attempt for legacy test account if initial attempt fails
         if res.status_code != 200 and email == "aboobacker.init@gmail.com" and body.password != "Password123!":
