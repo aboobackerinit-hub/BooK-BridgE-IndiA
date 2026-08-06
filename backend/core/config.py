@@ -9,7 +9,7 @@ load_dotenv(Path(__file__).parent.parent / '.env')
 load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 # Firebase Configuration
-FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY") or ""
+FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY") or "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
 FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID") or ""
 FIREBASE_CLIENT_EMAIL = os.environ.get("FIREBASE_CLIENT_EMAIL") or ""
 FIREBASE_PRIVATE_KEY = os.environ.get("FIREBASE_PRIVATE_KEY") or ""
