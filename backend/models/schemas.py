@@ -99,8 +99,16 @@ class BookIn(BaseModel):
 class BookUpdateIn(BaseModel):
     title: Optional[str] = None
     author: Optional[str] = None
+    description: Optional[str] = None
     price: Optional[float] = None
+    stock: Optional[int] = None
     category: Optional[str] = None
+    condition: Optional[str] = None
+    image_url: Optional[str] = None
+    images: Optional[list[str]] = None
+    isbn: Optional[str] = None
+    edition: Optional[str] = None
+    language: Optional[str] = None
     listing_type: Optional[str] = None
     delivery_options: Optional[list[str]] = None
     subject: Optional[str] = None

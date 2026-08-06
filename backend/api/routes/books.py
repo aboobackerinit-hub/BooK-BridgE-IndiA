@@ -104,7 +104,7 @@ def create_book(body: BookIn, user: dict = Depends(get_current_user)):
     return row
 
 @router.put("/{book_id}")
-def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_user)):
+def update_book(book_id: str, body: dict, user: dict = Depends(get_current_user)):
     db = get_db()
     doc_ref = db.collection("books").document(book_id)
     doc = doc_ref.get()
@@ -113,13 +113,45 @@ def update_book(book_id: str, body: BookIn, user: dict = Depends(get_current_use
         raise HTTPException(404, "Book not found")
         
     b = doc.to_dict()
+    # Only owner or admin can edit
     if b.get("owner_id") != user["id"] and user.get("role") != "admin":
-        raise HTTPException(403, "Not allowed")
+        raise HTTPException(403, "Only the book owner or an admin can edit this listing")
         
-    row = body.dict()
-    # Only upload if it's a data url
-    if row.get("image_url") and row["image_url"].startswith("data:"):
+    row = {k: v for k, v in body.items() if v is not None}
+    
+    # Protect system fields
+    row.pop("id", None)
+    row.pop("owner_id", None)
+    row.pop("owner_role", None)
+    row.pop("created_at", None)
+    
+    # Validate and process stock
+    if "stock" in row:
+        try:
+            row["stock"] = max(0, int(row["stock"]))
+        except (ValueError, TypeError):
+            row["stock"] = b.get("stock", 0)
+
+    # Validate price
+    if "price" in row:
+        try:
+            row["price"] = max(0.0, float(row["price"]))
+        except (ValueError, TypeError):
+            row["price"] = b.get("price", 0.0)
+            
+    # Handle main cover image upload if provided as base64 data URL
+    if row.get("image_url") and isinstance(row["image_url"], str) and row["image_url"].startswith("data:"):
         row["image_url"] = upload_base64_image(row["image_url"], folder="books")
+        
+    # Handle additional images if present
+    if "images" in row and isinstance(row["images"], list):
+        processed_images = []
+        for img in row["images"]:
+            if isinstance(img, str) and img.startswith("data:"):
+                processed_images.append(upload_base64_image(img, folder="books"))
+            elif isinstance(img, str) and img.strip():
+                processed_images.append(img.strip())
+        row["images"] = processed_images
         
     doc_ref.update(row)
     

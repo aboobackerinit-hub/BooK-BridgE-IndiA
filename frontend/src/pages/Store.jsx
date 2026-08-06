@@ -14,13 +14,12 @@ const HERO_IMG = "https://images.unsplash.com/photo-1491841651911-c44c30c34548?w
 
 const BookCard = ({ book }) => (
   <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
-    className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block">
-    <div className="aspect-[3/4] bg-muted overflow-hidden">
-      {book.image_url ? (
-        <OptimizedImage src={book.image_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center spine">
-          <BookOpen className="w-12 h-12 text-white/80" />
+    className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block relative">
+    <div className="aspect-[3/4] bg-muted overflow-hidden relative">
+      <OptimizedImage src={book.image_url} alt={book.title} fallbackType="book" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      {book.stock <= 0 && (
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
+          <Badge variant="destructive" className="px-3 py-1 font-semibold shadow-md">Out of Stock</Badge>
         </div>
       )}
     </div>

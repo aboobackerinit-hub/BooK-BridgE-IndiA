@@ -65,7 +65,9 @@ def create_chat_order(body: dict, background_tasks: BackgroundTasks, user: dict 
         raise HTTPException(404, "Book not found")
         
     b = book_doc.to_dict()
-    
+    if b.get("stock", 0) <= 0:
+        raise HTTPException(400, f"Book '{b.get('title')}' is currently out of stock")
+        
     if b.get("owner_role") != "user":
         raise HTTPException(400, "Online checkout required for store owners")
         

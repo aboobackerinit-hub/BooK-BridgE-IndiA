@@ -46,6 +46,8 @@ def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
         
     b = book_doc.to_dict()
     current_stock = b.get("stock", 0)
+    if current_stock <= 0:
+        raise HTTPException(400, f"Book '{b.get('title')}' is currently out of stock")
         
     docs = db.collection("cart").where("user_id", "==", user["id"]).where("book_id", "==", body.book_id).limit(1).stream()
     existing = list(docs)
@@ -54,11 +56,11 @@ def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
         doc = existing[0]
         new_qty = doc.to_dict().get("quantity", 0) + body.quantity
         if new_qty > current_stock:
-            raise HTTPException(400, "Not enough stock available")
+            raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
         db.collection("cart").document(doc.id).update({"quantity": new_qty})
     else:
         if body.quantity > current_stock:
-            raise HTTPException(400, "Not enough stock available")
+            raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
         new_ref = db.collection("cart").document()
         new_ref.set({
             "user_id": user["id"], 
