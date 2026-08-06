@@ -7,10 +7,23 @@ import { BookOpen, Image as ImageIcon } from 'lucide-react';
 export function OptimizedImage({ src, alt = "", fallbackType = "book", className = "", ...props }) {
   const [error, setError] = useState(false);
 
-  // Determine fallback icon based on type
-  const FallbackIcon = fallbackType === "book" ? BookOpen : ImageIcon;
+  const DEFAULT_BOOK_COVER = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&q=80";
 
-  if (!src || error) {
+  // Handle dead Supabase domain URLs gracefully
+  const isSupabaseUrl = src && src.includes(".supabase.co/storage/");
+
+  if (!src || error || isSupabaseUrl) {
+    if (fallbackType === "book") {
+      return (
+        <img
+          src={DEFAULT_BOOK_COVER}
+          alt={alt || "Book Cover"}
+          className={className}
+          loading="lazy"
+          {...props}
+        />
+      );
+    }
     return (
       <div className={`flex items-center justify-center bg-muted text-muted-foreground ${className}`} {...props}>
         <FallbackIcon className="w-1/3 h-1/3 opacity-50" />

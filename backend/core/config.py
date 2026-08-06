@@ -17,9 +17,9 @@ FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET") or ""
 FIREBASE_SERVICE_ACCOUNT_JSON_PATH = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON_PATH") or os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON") or ""
 
 # Cloudinary Configuration
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME") or ""
-CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY") or ""
-CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET") or ""
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME") or "n902apvn"
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY") or "725916822917913"
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET") or "jWz0qFvorgu3_6UPQ67MtRXoKx0"
 
 # App Secret config
 JWT_SECRET = os.environ.get("JWT_SECRET") or "dev-secret-please-set-in-env"
