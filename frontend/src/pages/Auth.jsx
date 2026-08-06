@@ -171,7 +171,13 @@ export const RegisterPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await register(form);
+      const sanitizedForm = {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password
+      };
+      await register(sanitizedForm);
       toast.success("Account created! Please sign in.");
       navigate("/login");
     } catch (err) {
