@@ -25,11 +25,5 @@ cloudinary>=1.40.0
 # JWT handling
 PyJWT>=2.0.0
 
-# Image processing (compression before upload)
-Pillow>=10.0.0
-
-# Password hashing (legacy support)
-bcrypt>=4.0.0
-
 # Email validation
 email-validator>=2.0.0

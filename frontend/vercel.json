@@ -1,8 +1,0 @@
-{
-  "version": 2,
-  "outputDirectory": "build",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
