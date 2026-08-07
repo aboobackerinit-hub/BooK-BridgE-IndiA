@@ -40,6 +40,11 @@ RATE_LIMIT_WRITE = int(os.environ.get("RATE_LIMIT_WRITE", "60"))     # per minut
 # CORS
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
 
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_bookbridge_dummy_key")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "bookbridge_dummy_secret_1234567890")
+
+
 # Logging setup
 logging.basicConfig(
     level=logging.INFO,

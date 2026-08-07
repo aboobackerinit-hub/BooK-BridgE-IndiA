@@ -18,7 +18,8 @@ from backend.api.routes import (
     location,
     recommendations,
     share,
-    gamification
+    gamification,
+    payments
 )
 
 api_router = APIRouter()
@@ -31,6 +32,7 @@ api_router.include_router(books.router)
 api_router.include_router(posts.router)
 api_router.include_router(cart.router)
 api_router.include_router(orders.router)
+api_router.include_router(payments.router)
 api_router.include_router(chat.router)
 api_router.include_router(notifications.router)
 api_router.include_router(dashboard.router)
@@ -41,3 +43,4 @@ api_router.include_router(location.router)
 api_router.include_router(recommendations.router)
 api_router.include_router(share.router)
 api_router.include_router(gamification.router)
+

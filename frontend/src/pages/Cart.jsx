@@ -13,7 +13,7 @@ const CartPage = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
-  const [payment, setPayment] = useState("cod");
+  const [payment, setPayment] = useState("razorpay");
   const [placing, setPlacing] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -48,10 +48,79 @@ const CartPage = () => {
     if (!address.trim() || !phone.trim()) return toast.error("Address and phone required");
     setPlacing(true);
     try {
-      const { data } = await api.post("/orders", { address, phone, payment_method: payment });
-      toast.success(`Order placed! ${data.order_no}`);
+      // 1. Place order in BookBridge backend
+      const { data: orderData } = await api.post("/orders", { address, phone, payment_method: payment });
+
+      if (payment === "razorpay") {
+        try {
+          // 2. Create Razorpay Payment order
+          const { data: rzpOrder } = await api.post("/payments/create-order", {
+            order_id: orderData.id,
+            amount: cart.total
+          });
+
+          // Check if Razorpay SDK is available
+          if (!window.Razorpay) {
+            toast.error("Razorpay SDK failed to load. Redirecting to orders.");
+            navigate("/orders");
+            return;
+          }
+
+          const options = {
+            key: rzpOrder.key_id,
+            amount: rzpOrder.amount,
+            currency: rzpOrder.currency || "INR",
+            name: "BookBridge India",
+            description: `Order #${orderData.order_no}`,
+            order_id: rzpOrder.razorpay_order_id,
+            handler: async (response) => {
+              try {
+                // 3. Verify Payment
+                await api.post("/payments/verify", {
+                  order_id: orderData.id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                });
+                toast.success(`Payment verified! Order #${orderData.order_no} placed.`);
+              } catch (err) {
+                toast.error("Payment verification failed. Please contact support.");
+              } finally {
+                navigate("/orders");
+              }
+            },
+            prefill: {
+              name: user?.name || "",
+              email: user?.email || "",
+              contact: phone
+            },
+            theme: {
+              color: "#16a34a"
+            },
+            modal: {
+              ondismiss: () => {
+                toast.info("Payment cancelled. Order placed with pending payment.");
+                navigate("/orders");
+              }
+            }
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+          setPlacing(false);
+          return;
+        } catch (rzpErr) {
+          toast.error("Razorpay initialization error: " + (rzpErr.response?.data?.detail || rzpErr.message));
+          navigate("/orders");
+          return;
+        }
+      }
+
+      toast.success(`Order placed! ${orderData.order_no}`);
       navigate("/orders");
-    } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to place order");
+    }
     setPlacing(false);
   };
 
@@ -109,12 +178,15 @@ const CartPage = () => {
             <Input id="ph" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 90000 00000" data-testid="checkout-phone" />
           </div>
           <div>
-            <Label><CreditCard className="w-3 h-3 inline mr-1" /> Payment</Label>
+            <Label><CreditCard className="w-3 h-3 inline mr-1" /> Payment Method</Label>
             <div className="grid grid-cols-2 gap-2 mt-1">
-              {[{ v: "cod", l: "Cash on Delivery" }, { v: "upi", l: "UPI (Demo)" }].map((p) => (
+              {[
+                { v: "razorpay", l: "Razorpay (Online)" },
+                { v: "upi", l: "UPI (Demo)" }
+              ].map((p) => (
                 <button key={p.v} onClick={() => setPayment(p.v)} data-testid={`payment-${p.v}`}
                   className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${
-                    payment === p.v ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                    payment === p.v ? "border-primary bg-primary/5 font-bold text-primary" : "border-border hover:border-primary/40"
                   }`}>{p.l}</button>
               ))}
             </div>
@@ -134,7 +206,7 @@ const CartPage = () => {
             </div>
           </div>
           <Button onClick={placeOrder} disabled={placing || cart.items.length === 0 || hasInsufficientStock} className="w-full rounded-full h-11" data-testid="place-order-btn">
-            {placing ? "Placing..." : hasInsufficientStock ? "Insufficient Stock" : "Place Order"}
+            {placing ? "Placing..." : hasInsufficientStock ? "Insufficient Stock" : payment === "razorpay" ? "Pay with Razorpay" : "Place Order"}
           </Button>
         </Card>
       </div>
