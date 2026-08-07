@@ -19,13 +19,23 @@ const CartPage = () => {
   const { user } = useAuth();
 
   const load = async () => {
-    const { data } = await api.get("/cart");
-    setCart(data);
+    try {
+      const { data } = await api.get("/cart");
+      setCart(data);
+    } catch (e) {
+      console.error("Cart load error", e);
+    }
   };
   useEffect(() => {
     load();
+    const t1 = setTimeout(() => load(), 500);
+    const t2 = setTimeout(() => load(), 1200);
     if (user?.address) setAddress(user.address);
     if (user?.phone) setPhone(user.phone);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [user]);
 
   const remove = async (bookId) => {

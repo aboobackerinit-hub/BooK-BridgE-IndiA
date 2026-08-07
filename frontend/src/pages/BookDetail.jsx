@@ -47,8 +47,16 @@ const BookDetail = () => {
   };
 
   const buyNow = async () => {
-    await addToCart();
-    navigate("/cart");
+    try {
+      const tId = toast.loading("Adding to cart & opening checkout...");
+      await api.post("/cart", { book_id: id, quantity: 1 });
+      toast.dismiss(tId);
+      toast.success("Added to cart");
+      navigate("/cart");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to add book to cart");
+      navigate("/cart");
+    }
   };
 
   const startChat = () => {
