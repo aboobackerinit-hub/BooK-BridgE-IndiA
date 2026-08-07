@@ -85,7 +85,7 @@ const AdminDashboard = () => {
       try {
         await api.put(`/admin/users/${u.id}`, { name, role });
         if (newPass.trim()) {
-          await api.put(`/admin/users/${u.id}/reset-password`, { new_password: newPass.trim() });
+          await api.post("/admin/reset-password", { user_id: u.id, email: u.email, new_password: newPass.trim() });
           toast.success(`User details & password updated to '${newPass.trim()}'`);
         } else {
           toast.success("User updated");
@@ -98,10 +98,15 @@ const AdminDashboard = () => {
       const pass = newPass.trim() || "Password123!";
       setResetting(true);
       try {
-        const res = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: pass });
+        const res = await api.post("/admin/reset-password", { user_id: u.id, email: u.email, new_password: pass });
         toast.success(res.data?.message || `Password reset to '${pass}'`);
       } catch (err) {
-        toast.error("Failed to reset password");
+        try {
+          const fallbackRes = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: pass });
+          toast.success(fallbackRes.data?.message || `Password reset to '${pass}'`);
+        } catch (e2) {
+          toast.error("Failed to reset password");
+        }
       } finally {
         setResetting(false);
       }
@@ -182,10 +187,15 @@ const AdminDashboard = () => {
     const newPass = window.prompt(`Enter new password for ${u.name} (${u.email}):`, "Password123!");
     if (!newPass) return;
     try {
-      const res = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: newPass });
+      const res = await api.post("/admin/reset-password", { user_id: u.id, email: u.email, new_password: newPass });
       toast.success(res.data?.message || "Password reset successfully!");
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Failed to reset password");
+      try {
+        const fallbackRes = await api.put(`/admin/users/${u.id}/reset-password`, { new_password: newPass });
+        toast.success(fallbackRes.data?.message || "Password reset successfully!");
+      } catch (e2) {
+        toast.error(e.response?.data?.detail || "Failed to reset password");
+      }
     }
   };
 

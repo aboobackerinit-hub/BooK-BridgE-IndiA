@@ -63,6 +63,15 @@ def admin_users(user: dict = Depends(require_role("admin"))):
         results.append(clean_user_dict(d))
     return results
 
+@router.post("/reset-password")
+@router.put("/reset-password")
+def admin_reset_password_by_body(body: dict, user: dict = Depends(require_role("admin"))):
+    user_id = body.get("user_id") or body.get("email") or body.get("id")
+    if not user_id:
+        raise HTTPException(400, "user_id or email required")
+    return admin_reset_user_password(user_id, body, user=user)
+
+@router.post("/users/{user_id}/reset-password")
 @router.put("/users/{user_id}/reset-password")
 def admin_reset_user_password(user_id: str, body: dict, user: dict = Depends(require_role("admin"))):
     new_password = body.get("new_password") or "Password123!"
