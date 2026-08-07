@@ -2,13 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { GoShopNavbar } from "@/components/goshop/GoShopNavbar";
 import { GoShopFooter } from "@/components/goshop/GoShopFooter";
+import { GoShopThemeProvider, useGoShopTheme } from "@/context/GoShopThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 
-export const GoShopAppShell = () => {
+const InnerShell = () => {
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
   const { user } = useAuth();
+  const { isDark } = useGoShopTheme();
 
   const fetchCounts = async () => {
     if (user) {
@@ -34,12 +36,22 @@ export const GoShopAppShell = () => {
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-outfit antialiased selection:bg-amber-500 selection:text-zinc-950">
+    <div className={`min-h-screen flex flex-col font-outfit antialiased selection:bg-amber-500 selection:text-zinc-950 transition-colors duration-300 ${
+      isDark ? "bg-zinc-950 text-zinc-100" : "bg-zinc-50 text-zinc-900"
+    }`}>
       <GoShopNavbar cartCount={cartCount} wishlistCount={wishlistCount} />
       <main className="flex-1">
         <Outlet />
       </main>
       <GoShopFooter />
     </div>
+  );
+};
+
+export const GoShopAppShell = () => {
+  return (
+    <GoShopThemeProvider>
+      <InnerShell />
+    </GoShopThemeProvider>
   );
 };
