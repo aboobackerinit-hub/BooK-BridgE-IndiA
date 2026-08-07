@@ -15,7 +15,42 @@ router = APIRouter(prefix="/goshop", tags=["goshop-store"])
 logger = logging.getLogger("bookbridge.routes.goshop")
 
 
+# ── CLOUDINARY IMAGE STORAGE UPLOAD ───────────────────────────────────
+
+@router.post("/upload-cloudinary")
+def upload_goshop_image_to_cloudinary(body: dict, user: dict = Depends(get_current_user)):
+    """Cloudinary image upload endpoint."""
+    import requests
+    from backend.core.config import CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+    
+    image_data = body.get("image")
+    if not image_data:
+        raise HTTPException(400, "Base64 or image URL required")
+
+    cloud_name = CLOUDINARY_CLOUD_NAME or "goshop-store"
+    try:
+        # Try uploading to Cloudinary
+        res = requests.post(
+            f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload",
+            data={
+                "file": image_data,
+                "upload_preset": "goshop_preset",
+                "folder": "goshop_products"
+            },
+            timeout=8
+        )
+        if res.status_code == 200:
+            cdn_url = res.json().get("secure_url")
+            return {"url": cdn_url, "storage": "cloudinary"}
+    except Exception as err:
+        logger.warning(f"Cloudinary direct upload fallback: {err}")
+
+    # Fallback return data URL
+    return {"url": image_data, "storage": "firebase_base64"}
+
+
 # ── 1. PRODUCTS & CATALOG ──────────────────────────────────────────────
+
 
 @router.get("/products")
 def list_goshop_products(

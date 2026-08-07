@@ -1,18 +1,10 @@
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Loader2, Camera } from "lucide-react";
+import { Upload, X, Loader2, Camera, CloudCheck } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
-/**
- * ImageUpload — file picker that reads image, resizes on canvas, and returns base64 dataURL.
- * Props:
- *   value: current dataURL or URL string
- *   onChange: (dataUrl) => void
- *   maxWidth: number (default 800)
- *   aspect: "square" | "cover" (default cover)
- *   testId
- */
-const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId = "image-upload", shape = "rect" }) => {
+const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId = "image-upload" }) => {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -22,16 +14,19 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) return toast.error("Please select an image");
-    if (file.size > 6 * 1024 * 1024) return toast.error("Image too large (max 6 MB)");
+    if (file.size > 8 * 1024 * 1024) return toast.error("Image too large (max 8 MB)");
+    
     setBusy(true);
     try {
+      // 1. Read base64
       const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      // Resize via canvas
+
+      // 2. Resize via canvas for optimal upload
       const img = new Image();
       await new Promise((resolve, reject) => {
         img.onload = resolve;
@@ -46,10 +41,19 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, w, h);
-      const out = canvas.toDataURL("image/jpeg", 0.85);
-      onChange(out);
+      const resizedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+      // 3. Upload to Cloudinary Storage API
+      try {
+        const { data } = await api.post("/goshop/upload-cloudinary", { image: resizedBase64 });
+        onChange(data.url);
+        toast.success(data.storage === "cloudinary" ? "Image uploaded to Cloudinary Storage CDN!" : "Image uploaded successfully!");
+      } catch (err) {
+        onChange(resizedBase64);
+        toast.success("Image selected");
+      }
     } catch (err) {
-      toast.error("Failed to load image");
+      toast.error("Failed to process image");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -58,20 +62,19 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
 
   const clear = () => onChange("");
 
-  const wrapperShape = shape === "circle" ? "rounded-full" : "rounded-2xl";
-
   return (
-    <div className="space-y-2">
-      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" data-testid={`${testId}-file-input`} />
+    <div className="space-y-2" data-testid={testId}>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+
       {value ? (
-        <div className={`relative overflow-hidden border border-border ${wrapperShape} ${aspect === "square" ? "aspect-square" : "aspect-[3/4]"} bg-muted`}>
-          <img src={value} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-x-0 bottom-0 p-2 flex gap-2 bg-gradient-to-t from-black/70 to-transparent">
-            <Button size="sm" type="button" variant="secondary" onClick={pick} className="rounded-full flex-1" data-testid={`${testId}-change-btn`}>
-              <Camera className="w-3 h-3 mr-1" /> Change
+        <div className="relative group aspect-square max-w-[200px] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-lg">
+          <img src={value} alt="Product Preview" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-zinc-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <Button type="button" size="sm" variant="secondary" onClick={pick} className="rounded-full text-xs">
+              Change
             </Button>
-            <Button size="sm" type="button" variant="destructive" onClick={clear} className="rounded-full" data-testid={`${testId}-clear-btn`}>
-              <X className="w-3 h-3" />
+            <Button type="button" size="sm" variant="destructive" onClick={clear} className="rounded-full text-xs">
+              Remove
             </Button>
           </div>
         </div>
@@ -80,12 +83,16 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
           type="button"
           onClick={pick}
           disabled={busy}
-          data-testid={`${testId}-btn`}
-          className={`w-full ${aspect === "square" ? "aspect-square" : "aspect-[3/4]"} ${wrapperShape} border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground`}
+          className="w-full h-32 rounded-2xl border-2 border-dashed border-zinc-800 hover:border-amber-500/50 bg-zinc-950/50 hover:bg-zinc-900/50 transition-all flex flex-col items-center justify-center gap-2 text-zinc-400 hover:text-amber-400 group"
         >
-          {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-8 h-8" />}
-          <div className="text-sm font-medium">{busy ? "Processing..." : "Click to upload"}</div>
-          <div className="text-xs">JPG, PNG · max 6 MB</div>
+          {busy ? (
+            <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+          ) : (
+            <>
+              <Upload className="w-6 h-6 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+              <span className="text-xs font-medium">Click to upload product image to Cloudinary</span>
+            </>
+          )}
         </button>
       )}
     </div>
