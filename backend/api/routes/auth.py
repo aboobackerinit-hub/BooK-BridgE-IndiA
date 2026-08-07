@@ -11,7 +11,7 @@ from backend.models.schemas import (
     RegisterIn, LoginIn, ResetPasswordIn, ResetPasswordConfirmIn, 
     ChangePasswordIn, DeleteAccountIn
 )
-from backend.api.dependencies import get_current_user
+from backend.api.dependencies import get_current_user, require_role
 from backend.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
