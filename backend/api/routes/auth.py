@@ -203,6 +203,41 @@ def reset_password(body: ResetPasswordIn):
         logger.error(f"Reset password failed: {e}")
         return {"ok": True, "message": "Password reset email sent. Please check your inbox."}
 
+@router.post("/admin-reset-password")
+def auth_admin_reset_password(body: dict, user: dict = Depends(require_role("admin"))):
+    user_id = body.get("user_id") or body.get("email") or body.get("id")
+    new_password = body.get("new_password") or "Password123!"
+    
+    if not user_id:
+        raise HTTPException(400, "user_id or email required")
+    if len(new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
+    db = get_db()
+    user_doc = db.collection("users").document(user_id).get()
+    auth_uid = user_id
+    if not user_doc.exists:
+        users = db.collection("users").where("email", "==", user_id.lower()).limit(1).get()
+        if users:
+            auth_uid = users[0].id
+            user_doc = users[0]
+
+    try:
+        from firebase_admin import auth as firebase_auth
+        try:
+            firebase_auth.update_user(auth_uid, password=new_password)
+        except Exception:
+            email = user_doc.to_dict().get("email") if user_doc.exists else (user_id if "@" in user_id else None)
+            if email:
+                fb_user = firebase_auth.get_user_by_email(email)
+                firebase_auth.update_user(fb_user.uid, password=new_password)
+            else:
+                raise
+        return {"ok": True, "message": f"Password reset successfully to '{new_password}'"}
+    except Exception as e:
+        logger.error(f"Admin reset password error: {e}")
+        raise HTTPException(400, f"Could not reset password: {str(e)}")
+
 @router.post("/reset-password/confirm")
 def reset_password_confirm(body: ResetPasswordConfirmIn):
     # This endpoint in Firebase is usually handled by the Firebase-generated link itself.
