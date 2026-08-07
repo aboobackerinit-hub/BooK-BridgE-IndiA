@@ -1,9 +1,7 @@
 {
   "version": 2,
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm run build",
+  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "frontend/build",
-  "framework": "create-react-app",
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
