@@ -20,15 +20,12 @@ def get_cart(user: dict = Depends(get_current_user)):
     book_ids = [i["book_id"] for i in items]
     books_map = {}
     
-    if book_ids:
-        # Note: Firestore 'in' has a max of 10 items.
-        for i in range(0, len(book_ids), 10):
-            chunk = book_ids[i:i+10]
-            bdocs = db.collection("books").where(firestore.FieldPath.document_id(), "in", chunk).stream()
-            for bdoc in bdocs:
-                b = bdoc.to_dict()
-                b["id"] = bdoc.id
-                books_map[b["id"]] = b
+    for bid in set(book_ids):
+        bdoc = db.collection("books").document(bid).get()
+        if bdoc.exists:
+            b = bdoc.to_dict()
+            b["id"] = bdoc.id
+            books_map[b["id"]] = b
                 
     for i in items:
         i["book"] = books_map.get(i["book_id"])
