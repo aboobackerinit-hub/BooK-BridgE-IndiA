@@ -193,3 +193,70 @@ class AdminAnnouncementIn(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
     body: str = Field(..., min_length=10, max_length=2000)
 
+
+# ── GOSHOP STORE Schemas ──────────────────────────────────────────────
+
+class GoShopAddressIn(BaseModel):
+    full_name: str = Field(..., min_length=2)
+    mobile_number: str = Field(..., min_length=10)
+    house_name_no: str
+    street: str
+    landmark: Optional[str] = ""
+    place: str
+    post_office: str
+    district: str
+    state: str
+    pin_code: str = Field(..., min_length=6, max_length=6)
+    is_default: Optional[bool] = False
+
+
+class GoShopProductIn(BaseModel):
+    name: str = Field(..., min_length=2)
+    description: str = ""
+    category: str
+    price: float = Field(..., ge=0)
+    discount: Optional[float] = 0.0
+    stock: int = Field(1, ge=0)
+    images: list[str] = []
+    tags: Optional[list[str]] = []
+    featured: Optional[bool] = False
+    bestseller: Optional[bool] = False
+    is_active: Optional[bool] = True
+
+
+class GoShopProductUpdateIn(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[float] = None
+    discount: Optional[float] = None
+    stock: Optional[int] = None
+    images: Optional[list[str]] = None
+    tags: Optional[list[str]] = None
+    featured: Optional[bool] = None
+    bestseller: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class GoShopOrderIn(BaseModel):
+    address_id: Optional[str] = None
+    custom_address: Optional[GoShopAddressIn] = None
+    notes: Optional[str] = ""
+
+
+class GoShopOrderStatusIn(BaseModel):
+    status: str  # Pending | Contacted | Payment Received | Packing | Shipped | Delivered | Cancelled
+
+
+class GoShopCategoryIn(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    image_url: Optional[str] = ""
+
+
+class GoShopReviewIn(BaseModel):
+    product_id: str
+    rating: int = Field(..., ge=1, le=5)
+    comment: str = Field(..., min_length=3)
+
+

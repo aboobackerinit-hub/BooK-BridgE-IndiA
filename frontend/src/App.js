@@ -5,9 +5,10 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { PrefsProvider } from "@/context/PrefsContext";
 import { Toaster } from "@/components/ui/sonner";
 import AppShell from "@/components/layout/AppShell";
+import { GoShopAppShell } from "@/components/goshop/GoShopAppShell";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 
-// Lazy-loaded pages
+// Legacy pages
 const LoginPage = React.lazy(() => import("@/pages/Auth").then(m => ({ default: m.LoginPage })));
 const RegisterPage = React.lazy(() => import("@/pages/Auth").then(m => ({ default: m.RegisterPage })));
 const ResetPassword = React.lazy(() => import("@/pages/ResetPassword"));
@@ -22,6 +23,15 @@ const SettingsPage = React.lazy(() => import("@/pages/Settings"));
 const SellBookPage = React.lazy(() => import("@/pages/SellBook"));
 const SellerDashboard = React.lazy(() => import("@/pages/SellerDashboard"));
 const AdminDashboard = React.lazy(() => import("@/pages/AdminDashboard"));
+
+// GOSHOP STORE Pages
+const GoShopHome = React.lazy(() => import("@/pages/goshop/GoShopHome").then(m => ({ default: m.GoShopHome })));
+const GoShopCatalog = React.lazy(() => import("@/pages/goshop/GoShopCatalog").then(m => ({ default: m.GoShopCatalog })));
+const GoShopProductDetail = React.lazy(() => import("@/pages/goshop/GoShopProductDetail").then(m => ({ default: m.GoShopProductDetail })));
+const GoShopCartCheckout = React.lazy(() => import("@/pages/goshop/GoShopCartCheckout").then(m => ({ default: m.GoShopCartCheckout })));
+const GoShopCustomerDashboard = React.lazy(() => import("@/pages/goshop/GoShopCustomerDashboard").then(m => ({ default: m.GoShopCustomerDashboard })));
+const GoShopAdminDashboard = React.lazy(() => import("@/pages/goshop/GoShopAdminDashboard").then(m => ({ default: m.GoShopAdminDashboard })));
+const GoShopLegalPages = React.lazy(() => import("@/pages/goshop/GoShopLegalPages").then(m => ({ default: m.GoShopLegalPages })));
 
 const RoleGuard = ({ roles, children }) => {
   const { user, loading } = useAuth();
@@ -38,11 +48,25 @@ function App() {
         <BrowserRouter>
           <Suspense fallback={<PageSkeleton />}>
             <Routes>
+              
+              {/* GOSHOP STORE LUXURY ECOMMERCE ROUTES */}
+              <Route element={<GoShopAppShell />}>
+                <Route path="/goshop" element={<GoShopHome />} />
+                <Route path="/goshop/catalog" element={<GoShopCatalog />} />
+                <Route path="/goshop/product/:id" element={<GoShopProductDetail />} />
+                <Route path="/goshop/cart" element={<GoShopCartCheckout />} />
+                <Route path="/goshop/dashboard" element={<GoShopCustomerDashboard />} />
+                <Route path="/goshop/admin" element={<RoleGuard roles={["admin"]}><GoShopAdminDashboard /></RoleGuard>} />
+                <Route path="/goshop/auth" element={<LoginPage />} />
+                <Route path="/goshop/:page" element={<GoShopLegalPages />} />
+              </Route>
+
+              {/* LEGACY APP ROUTES */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<AppShell />}>
-                <Route path="/" element={<Navigate to="/store" replace />} />
+                <Route path="/" element={<Navigate to="/goshop" replace />} />
                 <Route path="/store" element={<StorePage />} />
                 <Route path="/book/:id" element={<BookDetail />} />
                 <Route path="/reviews" element={<ReviewsPage />} />
@@ -57,7 +81,7 @@ function App() {
                 <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
                 <Route path="/admin" element={<RoleGuard roles={["admin"]}><AdminDashboard /></RoleGuard>} />
               </Route>
-              <Route path="*" element={<Navigate to="/store" replace />} />
+              <Route path="*" element={<Navigate to="/goshop" replace />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
