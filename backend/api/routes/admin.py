@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from backend.core.database import get_db
 from firebase_admin import firestore
@@ -5,6 +6,7 @@ from backend.core.security import get_user_by_id, clean_user_dict
 from backend.api.dependencies import require_role
 from backend.models.schemas import UserUpdateIn, BookUpdateIn, AdminAnnouncementIn
 
+logger = logging.getLogger("bookbridge.admin")
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/stats")
@@ -61,6 +63,47 @@ def admin_users(user: dict = Depends(require_role("admin"))):
         results.append(clean_user_dict(d))
     return results
 
+@router.put("/users/{user_id}/reset-password")
+def admin_reset_user_password(user_id: str, body: dict, user: dict = Depends(require_role("admin"))):
+    new_password = body.get("new_password") or "Password123!"
+    if len(new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+        
+    db = get_db()
+    user_doc = db.collection("users").document(user_id).get()
+    auth_uid = user_id
+    if not user_doc.exists:
+        users = db.collection("users").where("email", "==", user_id.lower()).limit(1).get()
+        if users:
+            auth_uid = users[0].id
+            user_doc = users[0]
+            
+    try:
+        from firebase_admin import auth as firebase_auth
+        try:
+            firebase_auth.update_user(auth_uid, password=new_password)
+        except Exception:
+            email = user_doc.to_dict().get("email") if user_doc.exists else None
+            if email:
+                fb_user = firebase_auth.get_user_by_email(email)
+                firebase_auth.update_user(fb_user.uid, password=new_password)
+            else:
+                raise
+        return {"ok": True, "message": f"Password reset successfully to '{new_password}'"}
+    except Exception as e:
+        logger.error(f"Admin reset password error: {e}")
+        raise HTTPException(400, f"Could not reset password: {str(e)}")
+
+@router.put("/users/{user_id}/suspend")
+def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
+    u = get_user_by_id(user_id)
+    if not u:
+        raise HTTPException(404, "Not found")
+        
+    db = get_db()
+    db.collection("users").document(user_id).update({"suspended": not u.get("suspended", False)})
+    return {"ok": True}
+
 @router.put("/users/{user_id}")
 def update_user(user_id: str, body: UserUpdateIn, user: dict = Depends(require_role("admin"))):
     updates = {}
@@ -81,16 +124,6 @@ def update_user(user_id: str, body: UserUpdateIn, user: dict = Depends(require_r
     d["id"] = doc.id
     return d
 
-@router.put("/users/{user_id}/suspend")
-def admin_suspend(user_id: str, user: dict = Depends(require_role("admin"))):
-    u = get_user_by_id(user_id)
-    if not u:
-        raise HTTPException(404, "Not found")
-        
-    db = get_db()
-    db.collection("users").document(user_id).update({"suspended": not u.get("suspended", False)})
-    return {"ok": True}
-
 @router.delete("/users/{user_id}")
 def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin"))):
     db = get_db()
@@ -101,19 +134,6 @@ def admin_delete_user(user_id: str, user: dict = Depends(require_role("admin")))
     except Exception as e:
         logger.warning(f"Could not delete user from Firebase Auth: {e}")
     return {"ok": True}
-
-@router.put("/users/{user_id}/reset-password")
-def admin_reset_user_password(user_id: str, body: dict, user: dict = Depends(require_role("admin"))):
-    new_password = body.get("new_password") or "Password123!"
-    if len(new_password) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
-    try:
-        from firebase_admin import auth as firebase_auth
-        firebase_auth.update_user(user_id, password=new_password)
-        return {"ok": True, "message": f"Password reset successfully to '{new_password}'"}
-    except Exception as e:
-        logger.error(f"Admin reset password error: {e}")
-        raise HTTPException(400, f"Could not reset password: {str(e)}")
 
 @router.put("/books/{book_id}")
 def update_book(book_id: str, body: BookUpdateIn, user: dict = Depends(require_role("admin"))):
