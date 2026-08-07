@@ -32,9 +32,10 @@ def register(body: RegisterIn):
                 password=body.password,
                 display_name=name
             )
-        except firebase_admin.exceptions.AlreadyExistsError:
-            raise HTTPException(400, "Email already registered. Please login instead.")
         except Exception as e:
+            err_str = str(e).lower()
+            if "already" in err_str or "exists" in err_str:
+                raise HTTPException(400, "Email already registered. Please login instead.")
             logger.error(f"Firebase Auth create user error: {e}")
             raise HTTPException(400, "Could not create user account. Check email format and password (min 6 characters).")
 
@@ -58,7 +59,8 @@ def register(body: RegisterIn):
         row["id"] = fb_user.uid
         
         # Return a token immediately using REST API
-        api_key = FIREBASE_API_KEY or "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
         login_payload = {
             "email": email,
             "password": body.password,
@@ -69,9 +71,8 @@ def register(body: RegisterIn):
             json=login_payload
         )
         if res.status_code != 200:
-            api_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
             res = requests.post(
-                f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
+                f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={fallback_key}",
                 json=login_payload
             )
         if res.status_code == 200:
@@ -129,14 +130,6 @@ def login(body: LoginIn):
                     f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
                     json=login_payload
                 )
-
-        # Secondary fallback attempt for legacy test account if initial attempt fails
-        if res.status_code != 200 and email == "aboobacker.init@gmail.com" and body.password != "Password123!":
-            login_payload["password"] = "Password123!"
-            res = requests.post(
-                f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}",
-                json=login_payload
-            )
 
         if res.status_code != 200:
             error_code = res.json().get("error", {}).get("message", "UNKNOWN")
