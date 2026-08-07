@@ -9,6 +9,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const CartPage = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [address, setAddress] = useState("");
@@ -53,18 +67,19 @@ const CartPage = () => {
 
       if (payment === "razorpay") {
         try {
+          // Ensure Razorpay SDK is loaded dynamically
+          const isRzpLoaded = await loadRazorpayScript();
+          if (!isRzpLoaded) {
+            toast.error("Unable to load Razorpay Checkout. Please check your internet connection.");
+            setPlacing(false);
+            return;
+          }
+
           // 2. Create Razorpay Payment order
           const { data: rzpOrder } = await api.post("/payments/create-order", {
             order_id: orderData.id,
             amount: cart.total
           });
-
-          // Check if Razorpay SDK is available
-          if (!window.Razorpay) {
-            toast.error("Razorpay SDK failed to load. Redirecting to orders.");
-            navigate("/orders");
-            return;
-          }
 
           const options = {
             key: rzpOrder.key_id,
@@ -75,7 +90,7 @@ const CartPage = () => {
             order_id: rzpOrder.razorpay_order_id,
             handler: async (response) => {
               try {
-                // 3. Verify Payment
+                // 3. Verify Payment Signature
                 await api.post("/payments/verify", {
                   order_id: orderData.id,
                   razorpay_order_id: response.razorpay_order_id,
