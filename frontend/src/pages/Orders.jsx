@@ -2,24 +2,50 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Package, MapPin } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
 const CHAT_STATUSES = ["Interested", "Chat Started", "Sold", "Completed", "Cancelled"];
 
 const statusColor = (s) => {
-  const map = { New: "bg-blue-100 text-blue-700", Processing: "bg-amber-100 text-amber-700",
-    Packed: "bg-purple-100 text-purple-700", Shipped: "bg-indigo-100 text-indigo-700",
-    Delivered: "bg-secondary/20 text-secondary", Cancelled: "bg-destructive/10 text-destructive",
-    "Interested": "bg-blue-100 text-blue-700", "Chat Started": "bg-indigo-100 text-indigo-700",
-    "Sold": "bg-purple-100 text-purple-700", "Completed": "bg-secondary/20 text-secondary" };
+  const map = {
+    New: "bg-blue-100 text-blue-700",
+    Processing: "bg-amber-100 text-amber-700",
+    Packed: "bg-purple-100 text-purple-700",
+    Shipped: "bg-indigo-100 text-indigo-700",
+    Delivered: "bg-secondary/20 text-secondary",
+    Cancelled: "bg-destructive/10 text-destructive",
+    "Interested": "bg-blue-100 text-blue-700",
+    "Chat Started": "bg-indigo-100 text-indigo-700",
+    "Sold": "bg-purple-100 text-purple-700",
+    "Completed": "bg-secondary/20 text-secondary"
+  };
   return map[s] || "bg-muted";
 };
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
-  useEffect(() => { api.get("/orders").then((r) => setOrders(r.data)); }, []);
+
+  const loadOrders = () => {
+    api.get("/orders").then((r) => setOrders(r.data)).catch((e) => console.error(e));
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const cancelOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    try {
+      await api.put(`/orders/${orderId}/status`, { status: "Cancelled" });
+      toast.success("Order cancelled successfully!");
+      loadOrders();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to cancel order");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -42,6 +68,7 @@ const OrdersPage = () => {
               </div>
               <Badge className={statusColor(o.status)}>{o.status}</Badge>
             </div>
+
             {/* Status pipeline */}
             <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
               {(o.is_chat_order ? CHAT_STATUSES : STATUSES).filter((s) => s !== "Cancelled").map((s, i) => {
@@ -56,16 +83,25 @@ const OrdersPage = () => {
                 );
               })}
             </div>
-            
-            {o.is_chat_order && o.status === "Sold" && (
-              <Button size="sm" onClick={async () => {
-                await api.put(`/orders/${o.id}/status`, { status: "Completed" });
-                const r = await api.get("/orders");
-                setOrders(r.data);
-              }} className="mb-4 w-full rounded-full" data-testid={`mark-completed-${o.id}`}>
-                Mark as Received
-              </Button>
-            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {o.is_chat_order && o.status === "Sold" && (
+                <Button size="sm" onClick={async () => {
+                  await api.put(`/orders/${o.id}/status`, { status: "Completed" });
+                  toast.success("Order marked as received!");
+                  loadOrders();
+                }} className="rounded-full flex-1" data-testid={`mark-completed-${o.id}`}>
+                  Mark as Received
+                </Button>
+              )}
+              {!["Cancelled", "Completed", "Shipped", "Delivered"].includes(o.status) && (
+                <Button size="sm" variant="outline" onClick={() => cancelOrder(o.id)}
+                  className="rounded-full text-destructive border-destructive/30 hover:bg-destructive/10" data-testid={`cancel-order-${o.id}`}>
+                  Cancel Order
+                </Button>
+              )}
+            </div>
 
             <div className="space-y-2 mb-4">
               {o.items.map((it, idx) => (

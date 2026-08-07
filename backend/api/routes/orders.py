@@ -294,8 +294,14 @@ def update_status(order_id: str, body: OrderStatusIn, background_tasks: Backgrou
     is_buyer = o.get("user_id") == user["id"]
     is_admin = user.get("role") == "admin"
     
-    if not (is_seller or is_admin or (is_buyer and body.status == "Completed")):
+    can_buyer_update = is_buyer and (
+        body.status == "Completed" or
+        (body.status == "Cancelled" and o.get("status") not in ["Shipped", "Delivered", "Completed", "Cancelled"])
+    )
+
+    if not (is_seller or is_admin or can_buyer_update):
         raise HTTPException(403, "Not allowed")
+
         
     if body.status in ["Cancelled", "Refunded"] and o.get("status") not in ["Cancelled", "Refunded"]:
         # Restore stock using a transaction
