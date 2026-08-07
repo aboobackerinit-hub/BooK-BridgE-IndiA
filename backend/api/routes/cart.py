@@ -42,9 +42,14 @@ def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
         raise HTTPException(404, "Book not found")
         
     b = book_doc.to_dict()
+    owner_id = b.get("owner_id") or b.get("user_id")
+    if owner_id == user["id"]:
+        raise HTTPException(400, "You cannot add your own book to cart")
+
     current_stock = b.get("stock", 0)
     if current_stock <= 0:
         raise HTTPException(400, f"Book '{b.get('title')}' is currently out of stock")
+
         
     docs = db.collection("cart").where("user_id", "==", user["id"]).where("book_id", "==", body.book_id).limit(1).stream()
     existing = list(docs)

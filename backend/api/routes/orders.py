@@ -177,8 +177,13 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
                 continue
                 
             b = book_snapshot.to_dict()
+            owner_id = b.get("owner_id") or b.get("user_id")
+            if owner_id == user["id"]:
+                raise HTTPException(400, f"Cannot buy your own book: {b.get('title')}")
+
             if b.get("stock", 0) < c["quantity"]:
                 raise HTTPException(400, f"Not enough stock for book: {b.get('title')}")
+
                 
             order_items.append({
                 "book_id": book_snapshot.id, 

@@ -163,27 +163,36 @@ const BookDetail = () => {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button onClick={buyNow} disabled={book.stock <= 0} size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="buy-now-btn">
-              <ShoppingBag className="w-4 h-4 mr-2" /> {book.stock > 0 ? "Buy Now" : "Out of Stock"}
-            </Button>
-            <Button onClick={addToCart} disabled={book.stock <= 0} variant="outline" size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="add-to-cart-btn">
-              <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
-            </Button>
-            {book.owner && book.owner.id !== user?.id && (
-              <Button onClick={async () => {
-                try {
-                  const creatingToast = toast.loading("Initiating chat...");
-                  await api.post("/orders/chat", { book_id: id });
-                  toast.dismiss(creatingToast);
-                  navigate(`/chat/${book.owner.id}`);
-                } catch (e) {
-                  toast.error(e.response?.data?.detail || "Failed to start chat");
-                }
-              }} disabled={book.stock <= 0} variant="secondary" size="lg" className="rounded-full flex-1 min-w-[160px]" data-testid="chat-buy-btn">
-                <MessageCircle className="w-4 h-4 mr-2" /> Contact Seller
-              </Button>
+            {user?.id && (book.owner_id === user.id || book.owner?.id === user.id) ? (
+              <Badge variant="outline" className="px-4 py-2 text-sm font-medium rounded-full bg-amber-500/10 text-amber-600 border-amber-500/30">
+                Your Listing (You cannot purchase your own book)
+              </Badge>
+            ) : (
+              <>
+                <Button onClick={buyNow} disabled={book.stock <= 0} size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="buy-now-btn">
+                  <ShoppingBag className="w-4 h-4 mr-2" /> {book.stock > 0 ? "Buy Now" : "Out of Stock"}
+                </Button>
+                <Button onClick={addToCart} disabled={book.stock <= 0} variant="outline" size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="add-to-cart-btn">
+                  <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
+                </Button>
+                {book.owner && book.owner.id !== user?.id && (
+                  <Button onClick={async () => {
+                    try {
+                      const creatingToast = toast.loading("Initiating chat...");
+                      await api.post("/orders/chat", { book_id: id });
+                      toast.dismiss(creatingToast);
+                      navigate(`/chat/${book.owner.id}`);
+                    } catch (e) {
+                      toast.error(e.response?.data?.detail || "Failed to start chat");
+                    }
+                  }} disabled={book.stock <= 0} variant="secondary" size="lg" className="rounded-full flex-1 min-w-[160px]" data-testid="chat-buy-btn">
+                    <MessageCircle className="w-4 h-4 mr-2" /> Contact Seller
+                  </Button>
+                )}
+              </>
             )}
           </div>
+
 
           {book.owner && (
             <Card className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
