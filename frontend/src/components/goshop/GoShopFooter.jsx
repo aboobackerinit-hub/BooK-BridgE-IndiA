@@ -93,8 +93,9 @@ export const GoShopFooter = () => {
       </div>
 
       <div className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-600">
-        © {new Date().getFullYear()} GOSHOP STORE. All rights reserved. Powered by Cloudinary & Firebase.
+        © {new Date().getFullYear()} GOSHOP STORE. All rights reserved.
       </div>
+
     </footer>
   );
 };

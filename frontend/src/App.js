@@ -32,6 +32,7 @@ const GoShopCartCheckout = React.lazy(() => import("@/pages/goshop/GoShopCartChe
 const GoShopCustomerDashboard = React.lazy(() => import("@/pages/goshop/GoShopCustomerDashboard").then(m => ({ default: m.GoShopCustomerDashboard })));
 const GoShopAdminDashboard = React.lazy(() => import("@/pages/goshop/GoShopAdminDashboard").then(m => ({ default: m.GoShopAdminDashboard })));
 const GoShopLegalPages = React.lazy(() => import("@/pages/goshop/GoShopLegalPages").then(m => ({ default: m.GoShopLegalPages })));
+const GoShopAuth = React.lazy(() => import("@/pages/goshop/GoShopAuth").then(m => ({ default: m.GoShopAuth })));
 
 const RoleGuard = ({ roles, children }) => {
   const { user, loading } = useAuth();
@@ -57,7 +58,8 @@ function App() {
                 <Route path="/goshop/cart" element={<GoShopCartCheckout />} />
                 <Route path="/goshop/dashboard" element={<GoShopCustomerDashboard />} />
                 <Route path="/goshop/admin" element={<RoleGuard roles={["admin"]}><GoShopAdminDashboard /></RoleGuard>} />
-                <Route path="/goshop/auth" element={<LoginPage />} />
+                <Route path="/goshop/auth" element={<GoShopAuth />} />
+
                 <Route path="/goshop/:page" element={<GoShopLegalPages />} />
               </Route>
 
