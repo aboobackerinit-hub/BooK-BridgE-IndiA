@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { ShoppingBag, Heart, MessageCircle, ArrowLeft, BookOpen, Edit, Trash2 } from "lucide-react";
+import { ShoppingBag, ShoppingCart, Heart, MessageCircle, ArrowLeft, BookOpen, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import ImageUpload from "@/components/ImageUpload";
@@ -154,29 +154,26 @@ const BookDetail = () => {
             </div>
           </div>
 
-          <div className="flex gap-3">
-            {book.owner_role === "user" ? (
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={buyNow} disabled={book.stock <= 0} size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="buy-now-btn">
+              <ShoppingBag className="w-4 h-4 mr-2" /> {book.stock > 0 ? "Buy Now" : "Out of Stock"}
+            </Button>
+            <Button onClick={addToCart} disabled={book.stock <= 0} variant="outline" size="lg" className="rounded-full flex-1 min-w-[140px]" data-testid="add-to-cart-btn">
+              <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
+            </Button>
+            {book.owner && book.owner.id !== user?.id && (
               <Button onClick={async () => {
                 try {
-                  const [creatingToast] = [toast.loading("Initiating chat...")];
+                  const creatingToast = toast.loading("Initiating chat...");
                   await api.post("/orders/chat", { book_id: id });
                   toast.dismiss(creatingToast);
                   navigate(`/chat/${book.owner.id}`);
                 } catch (e) {
                   toast.error(e.response?.data?.detail || "Failed to start chat");
                 }
-              }} disabled={book.stock <= 0} size="lg" className="rounded-full flex-1" data-testid="chat-buy-btn">
-                <MessageCircle className="w-4 h-4 mr-2" /> {book.stock > 0 ? "Contact Seller to Buy" : "Out of Stock"}
+              }} disabled={book.stock <= 0} variant="secondary" size="lg" className="rounded-full flex-1 min-w-[160px]" data-testid="chat-buy-btn">
+                <MessageCircle className="w-4 h-4 mr-2" /> Contact Seller
               </Button>
-            ) : (
-              <>
-                <Button onClick={buyNow} disabled={book.stock <= 0} size="lg" className="rounded-full flex-1" data-testid="buy-now-btn">
-                  <ShoppingBag className="w-4 h-4 mr-2" /> {book.stock > 0 ? "Buy Now" : "Out of Stock"}
-                </Button>
-                <Button onClick={addToCart} disabled={book.stock <= 0} variant="outline" size="lg" className="rounded-full" data-testid="add-to-cart-btn">
-                  Add to Cart
-                </Button>
-              </>
             )}
           </div>
 
