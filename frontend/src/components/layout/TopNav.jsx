@@ -15,6 +15,8 @@ import {
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
+import { InstallPromptButton } from "@/components/InstallPrompt";
+
 const dashboardRoute = (role) => {
   if (role === "admin") return "/admin";
   if (role === "store_owner") return "/store-owner";
@@ -70,9 +72,7 @@ const TopNav = () => {
     <header className="glass sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link to="/store" className="flex items-center gap-2 group" data-testid="brand-link">
-          <div className="w-9 h-9 rounded-xl spine flex items-center justify-center shadow-md">
-            <BookOpen className="w-5 h-5 text-white" aria-hidden="true" />
-          </div>
+          <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-9 h-9 rounded-xl object-contain shadow-md" />
           <div className="leading-tight">
             <div className="font-serif text-lg font-bold text-foreground">BookBridge</div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground -mt-1">India</div>
@@ -163,6 +163,7 @@ const TopNav = () => {
           >
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
+          <InstallPromptButton />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

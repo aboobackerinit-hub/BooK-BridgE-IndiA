@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import api from "@/lib/api";
+import { initPushNotifications } from "@/lib/pushNotifications";
 
 const AuthContext = createContext(null);
 
@@ -8,10 +9,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (user) {
+      initPushNotifications(user);
+    }
+  }, [user]);
+
+  useEffect(() => {
     const token = localStorage.getItem("bb_token");
     if (!token) { setLoading(false); return; }
     api.get("/auth/me")
-      .then((r) => setUser(r.data))
+      .then((r) => {
+        setUser(r.data);
+        initPushNotifications(r.data);
+      })
       .catch(() => localStorage.removeItem("bb_token"))
       .finally(() => setLoading(false));
   }, []);
@@ -23,9 +33,22 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  const register = async (payload) => {
-    // Register user but do NOT store token — user must login separately
-    await api.post("/auth/register", payload);
+  const register = async (emailOrObj, password, name, role = "user") => {
+    let payload;
+    if (typeof emailOrObj === "object") {
+      payload = emailOrObj;
+    } else {
+      payload = { email: emailOrObj, password, name, role };
+    }
+    const { data } = await api.post("/auth/register", payload);
+    if (data.token && data.token !== "firebase_token_pending") {
+      localStorage.setItem("bb_token", data.token);
+      setUser(data.user);
+    } else {
+      const loginRes = await api.post("/auth/login", { email: payload.email, password: payload.password });
+      localStorage.setItem("bb_token", loginRes.data.token);
+      setUser(loginRes.data.user);
+    }
     return true;
   };
 

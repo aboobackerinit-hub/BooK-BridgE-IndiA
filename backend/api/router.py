@@ -20,14 +20,12 @@ from backend.api.routes import (
     share,
     payments,
     gamification,
-    goshop_store
 )
 
 
 api_router = APIRouter()
 
 api_router.include_router(health.router)
-api_router.include_router(goshop_store.router)
 api_router.include_router(categories.router)
 api_router.include_router(auth.router)
 api_router.include_router(users.router)

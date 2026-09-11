@@ -43,15 +43,9 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
       ctx.drawImage(img, 0, 0, w, h);
       const resizedBase64 = canvas.toDataURL("image/jpeg", 0.85);
 
-      // 3. Upload to Cloudinary Storage API
-      try {
-        const { data } = await api.post("/goshop/upload-cloudinary", { image: resizedBase64 });
-        onChange(data.url);
-        toast.success(data.storage === "cloudinary" ? "Image uploaded to Cloudinary Storage CDN!" : "Image uploaded successfully!");
-      } catch (err) {
-        onChange(resizedBase64);
-        toast.success("Image selected");
-      }
+      // 3. Set image data URL
+      onChange(resizedBase64);
+      toast.success("Image selected successfully!");
     } catch (err) {
       toast.error("Failed to process image");
     } finally {

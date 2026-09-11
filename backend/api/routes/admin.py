@@ -202,6 +202,28 @@ def admin_delete_order(order_id: str, user: dict = Depends(require_role("admin")
     db.collection("orders").document(order_id).delete()
     return {"ok": True}
 
+@router.get("/posts")
+def admin_posts(user: dict = Depends(require_role("admin"))):
+    """Retrieve all community posts for admin moderation."""
+    db = get_db()
+    docs = db.collection("posts").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    results = []
+    for doc in docs:
+        d = doc.to_dict()
+        d["id"] = doc.id
+        results.append(d)
+    return results
+
+@router.delete("/posts/{post_id}")
+def admin_delete_post(post_id: str, user: dict = Depends(require_role("admin"))):
+    """Delete a specific community post document. Requires admin role."""
+    db = get_db()
+    doc_ref = db.collection("posts").document(post_id)
+    if not doc_ref.get().exists:
+        raise HTTPException(404, "Post not found")
+    doc_ref.delete()
+    return {"ok": True}
+
 @router.post("/announcement")
 def create_announcement(body: AdminAnnouncementIn, user: dict = Depends(require_role("admin"))):
     """Create a platform-wide announcement."""
@@ -215,9 +237,8 @@ def create_announcement(body: AdminAnnouncementIn, user: dict = Depends(require_
         "author_name": user.get("name")
     }
     
-    # Broadcast to all users (in reality, we'd add it to a central 'announcements' collection 
-    # and users fetch it, rather than writing a notification to every user)
     ref = db.collection("announcements").document()
     ref.set(announcement)
     
     return {"ok": True, "id": ref.id}
+

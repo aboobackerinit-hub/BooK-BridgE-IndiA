@@ -5,6 +5,7 @@ from backend.core.database import get_db
 router = APIRouter()
 
 @router.get("/health")
+@router.get("/v1/health")
 def health():
     """Diagnostic endpoint — safe to expose; does not leak secrets."""
     info = {
@@ -21,3 +22,4 @@ def health():
         info["db_reachable"] = False
         info["db_error"] = str(e)[:200]
     return info
+

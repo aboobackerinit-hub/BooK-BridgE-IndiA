@@ -75,3 +75,38 @@ def mark_all_read(user: dict = Depends(get_current_user)):
         batch.commit()
         
     return {"ok": True, "updated": count}
+
+@router.post("/register-token")
+def register_notification_token(body: dict, user: dict = Depends(get_current_user)):
+    token = body.get("token")
+    user_agent = body.get("user_agent", "unknown")
+    if not token or len(token) < 10:
+        raise HTTPException(400, "Valid FCM token is required")
+        
+    db = get_db()
+    token_ref = db.collection("users").document(user["id"]).collection("notification_tokens").document(token)
+    
+    token_data = {
+        "token": token,
+        "user_id": user["id"],
+        "user_agent": user_agent[:200],
+        "updated_at": firestore.SERVER_TIMESTAMP
+    }
+    
+    if not token_ref.get().exists:
+        token_data["created_at"] = firestore.SERVER_TIMESTAMP
+        
+    token_ref.set(token_data, merge=True)
+    return {"ok": True}
+
+@router.post("/unregister-token")
+def unregister_notification_token(body: dict, user: dict = Depends(get_current_user)):
+    token = body.get("token")
+    if not token:
+        raise HTTPException(400, "Token is required")
+        
+    db = get_db()
+    token_ref = db.collection("users").document(user["id"]).collection("notification_tokens").document(token)
+    token_ref.delete()
+    return {"ok": True}
+

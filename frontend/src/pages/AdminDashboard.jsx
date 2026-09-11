@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Users, User, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban, Key } from "lucide-react";
+import { Users, User, BookOpen, Package, DollarSign, Store, Building2, ShieldAlert, Star, Trash2, Ban, Key, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
@@ -22,17 +22,30 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [books, setBooks] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [posts, setPosts] = useState([]);
 
   const load = async () => {
-    const [s, u, b, o] = await Promise.all([
+    const [s, u, b, o, p] = await Promise.all([
       api.get("/admin/stats"),
       api.get("/admin/users"),
       api.get("/admin/books"),
       api.get("/orders/all"),
+      api.get("/admin/posts"),
     ]);
-    setStats(s.data); setUsers(u.data); setBooks(b.data); setOrders(o.data);
+    setStats(s.data); setUsers(u.data); setBooks(b.data); setOrders(o.data); setPosts(p.data);
   };
   useEffect(() => { load(); }, []);
+
+  const deletePost = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await api.delete(`/admin/posts/${id}`);
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Post deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete post");
+    }
+  };
 
   const suspendUser = async (id) => {
     await api.put(`/admin/users/${id}/suspend`);
@@ -232,6 +245,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="users" data-testid="admin-tab-users">Users</TabsTrigger>
           <TabsTrigger value="books" data-testid="admin-tab-books">Books</TabsTrigger>
           <TabsTrigger value="orders" data-testid="admin-tab-orders">Orders</TabsTrigger>
+          <TabsTrigger value="posts" data-testid="admin-tab-posts">Posts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-4 space-y-2">
@@ -333,6 +347,54 @@ const AdminDashboard = () => {
               </div>
             </Card>
           ))}
+        </TabsContent>
+
+        <TabsContent value="posts" className="mt-4 space-y-2">
+          {posts.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground">
+              No community posts found.
+            </Card>
+          ) : (
+            posts.map((p) => (
+              <Card key={p.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4" data-testid={`admin-post-${p.id}`}>
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <Avatar className="w-9 h-9 border">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                      {(p.author?.name || p.user_name || "U")[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{p.author?.name || p.user_name || "Community Member"}</span>
+                      {p.created_at && (
+                        <span className="text-xs text-muted-foreground">
+                          · {typeof p.created_at === "string" ? new Date(p.created_at).toLocaleDateString() : "Recently"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-foreground/90 line-clamp-2">{p.text}</p>
+                    {p.image_url && (
+                      <div className="mt-2 w-16 h-16 rounded overflow-hidden border bg-muted">
+                        <img src={p.image_url} alt="Post media" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end md:self-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deletePost(p.id)}
+                    className="text-destructive hover:bg-destructive/10 border-destructive/30"
+                    data-testid={`delete-post-${p.id}`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Delete Post
+                  </Button>
+                </div>
+              </Card>
+            ))
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -19,8 +19,10 @@ logger = logging.getLogger("bookbridge.routes.auth")
 
 @router.post("/register")
 def register(body: RegisterIn):
-    if body.role not in ("user", "store_owner", "publisher"):
+    effective_role = "user" if body.role in ("user", "customer", "") else body.role
+    if effective_role not in ("user", "store_owner", "publisher", "admin"):
         raise HTTPException(400, "Invalid role")
+    body.role = effective_role
     
     email = body.email.strip().lower()
     name = body.name.strip()

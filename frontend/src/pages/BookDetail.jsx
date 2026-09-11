@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { ShoppingBag, ShoppingCart, Heart, MessageCircle, ArrowLeft, BookOpen, Edit, Trash2 } from "lucide-react";
+import { ShoppingBag, ShoppingCart, Heart, MessageCircle, ArrowLeft, BookOpen, Edit, Trash2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import ImageUpload from "@/components/ImageUpload";
@@ -94,14 +94,42 @@ const BookDetail = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!book) return;
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: book.title,
+      text: `Check out "${book.title}" by ${book.author} on BookBridge India!`,
+      url: shareUrl,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          navigator.clipboard?.writeText(shareUrl);
+          toast.success("Book link copied to clipboard!");
+        }
+      }
+    } else {
+      navigator.clipboard?.writeText(shareUrl);
+      toast.success("Book link copied to clipboard!");
+    }
+  };
+
   if (!book) return <div className="text-center py-20 text-muted-foreground">Loading book...</div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="-ml-2" data-testid="back-btn">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="-ml-2" data-testid="back-btn">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleShare} className="rounded-full gap-1.5 text-xs" data-testid="share-book-btn">
+            <Share2 className="w-3.5 h-3.5" /> Share
+          </Button>
+        </div>
         {isOwnerOrAdmin && (
           <div className="flex gap-2">
             <Button variant="outline" className="rounded-full" onClick={() => setEditOpen(true)} data-testid="edit-listing-btn">

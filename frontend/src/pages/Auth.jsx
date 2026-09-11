@@ -23,9 +23,7 @@ const AuthLayout = ({ children }) => (
       }}>
       <div className="absolute inset-0 bg-gradient-to-br from-secondary/90 via-primary/70 to-primary/40 backdrop-blur-[2px]" />
       <div className="relative z-10 flex items-center gap-3 text-white fade-up">
-        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
-          <BookOpen className="w-6 h-6" />
-        </div>
+        <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-12 h-12 rounded-2xl object-contain shadow-md" />
         <div>
           <div className="font-serif text-2xl font-bold tracking-wide text-white drop-shadow-md">BookBridge</div>
           <div className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">India</div>
@@ -96,7 +94,7 @@ export const LoginPage = () => {
     return (
       <AuthLayout>
         <div className="mb-8 lg:hidden flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl spine flex items-center justify-center"><BookOpen className="w-5 h-5 text-white" /></div>
+          <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-9 h-9 rounded-xl object-contain shadow-md" />
           <div className="font-serif font-bold text-xl">BookBridge India</div>
         </div>
         <div className="mb-8">
@@ -125,7 +123,7 @@ export const LoginPage = () => {
   return (
     <AuthLayout>
       <div className="mb-8 lg:hidden flex items-center gap-2">
-        <div className="w-10 h-10 rounded-xl spine flex items-center justify-center"><BookOpen className="w-5 h-5 text-white" /></div>
+        <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-9 h-9 rounded-xl object-contain shadow-md" />
         <div className="font-serif font-bold text-xl">BookBridge India</div>
       </div>
       <div className="mb-8">
@@ -197,7 +195,7 @@ export const RegisterPage = () => {
   return (
     <AuthLayout>
       <div className="mb-6 lg:hidden flex items-center gap-2">
-        <div className="w-10 h-10 rounded-xl spine flex items-center justify-center"><BookOpen className="w-5 h-5 text-white" /></div>
+        <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-9 h-9 rounded-xl object-contain shadow-md" />
         <div className="font-serif font-bold text-xl">BookBridge India</div>
       </div>
       <div className="mb-6">

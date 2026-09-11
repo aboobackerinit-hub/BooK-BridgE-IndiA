@@ -6,17 +6,50 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, BookOpen, Plus } from "lucide-react";
+import { Search, Sparkles, BookOpen, Plus, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1491841651911-c44c30c34548?w=1400";
+
+const handleShare = async (e, book) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const shareUrl = `${window.location.origin}/book/${book.id}`;
+  const shareData = {
+    title: book.title,
+    text: `Check out "${book.title}" by ${book.author} on BookBridge India!`,
+    url: shareUrl,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        navigator.clipboard?.writeText(shareUrl);
+        toast.success("Book link copied to clipboard!");
+      }
+    }
+  } else {
+    navigator.clipboard?.writeText(shareUrl);
+    toast.success("Book link copied to clipboard!");
+  }
+};
 
 const BookCard = ({ book }) => (
   <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
     className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block relative">
     <div className="aspect-[3/4] bg-muted overflow-hidden relative">
       <OptimizedImage src={book.image_url} alt={book.title} fallbackType="book" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <button
+        onClick={(e) => handleShare(e, book)}
+        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm text-foreground hover:bg-background flex items-center justify-center shadow-sm transition-all opacity-90 group-hover:opacity-100 z-10"
+        title="Share book"
+        aria-label="Share book"
+        data-testid={`share-book-${book.id}`}
+      >
+        <Share2 className="w-3.5 h-3.5" />
+      </button>
       {book.stock <= 0 && (
         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
           <Badge variant="destructive" className="px-3 py-1 font-semibold shadow-md">Out of Stock</Badge>

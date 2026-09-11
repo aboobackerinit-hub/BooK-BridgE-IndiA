@@ -266,12 +266,36 @@ const SettingsPage = () => {
             <h3 className="font-serif text-xl">Push notifications</h3>
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium">Enable notifications</div>
+                <div className="font-medium">In-app notifications</div>
                 <div className="text-xs text-muted-foreground">Order updates, chat messages, follows</div>
               </div>
               <Switch checked={form.notifications_enabled} onCheckedChange={(v) => { setForm({ ...form, notifications_enabled: v }); }} data-testid="settings-notifications" />
             </div>
-            <div className="flex justify-end">
+
+            <div className="border-t border-border pt-4 flex items-center justify-between">
+              <div>
+                <div className="font-medium">Web Push & Device Notifications</div>
+                <div className="text-xs text-muted-foreground">Receive real-time push alerts on your phone or desktop even when BookBridge is in background</div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full text-xs font-semibold"
+                onClick={async () => {
+                  const { requestPushPermission } = await import("@/lib/pushNotifications");
+                  const ok = await requestPushPermission(user);
+                  if (ok) {
+                    toast.success("Web push notifications enabled on this device!");
+                  } else {
+                    toast.info("Notification permission was not granted or denied in browser.");
+                  }
+                }}
+              >
+                <Bell className="w-3.5 h-3.5 mr-1" /> Enable Device Push
+              </Button>
+            </div>
+
+            <div className="flex justify-end pt-2">
               <Button onClick={saveProfile} className="rounded-full">Save</Button>
             </div>
           </Card>

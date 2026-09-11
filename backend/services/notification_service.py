@@ -193,15 +193,64 @@ def mark_all_read(user_id: str) -> int:
 
 def dispatch_push(notification: dict) -> None:
     """
-    Push notification dispatch hook.
-
-    Currently a no-op. Wire to FCM/OneSignal here when ready.
-    The function signature and call sites remain stable.
+    Push notification dispatch hook via Firebase Cloud Messaging (FCM).
+    Sends FCM Multicast push to all registered active device tokens for the target user.
+    Auto-cleans invalid or expired tokens upon FCM error report.
     """
-    # Future implementation:
-    # from backend.services.push_provider import send_push
-    # send_push(notification["user_id"], notification["title"], notification["body"])
-    pass
+    user_id = notification.get("user_id")
+    title = notification.get("title", "BookBridge Notification")
+    body = notification.get("body", "")
+    action_url = notification.get("action_url", "/chat")
+    
+    if not user_id:
+        return
+        
+    try:
+        import firebase_admin.messaging as messaging
+        db = get_db()
+        if not db:
+            return
+            
+        tokens_docs = db.collection("users").document(user_id).collection("notification_tokens").stream()
+        tokens = [d.to_dict().get("token") for d in tokens_docs if d.to_dict().get("token")]
+        
+        if not tokens:
+            return
+            
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data={
+                "action_url": action_url,
+                "title": title,
+                "body": body,
+            },
+            tokens=tokens,
+        )
+        response = messaging.send_each_for_multicast(message)
+        logger.info(f"FCM Push sent to {len(tokens)} tokens for user {user_id[:8]}... (Success: {response.success_count}, Fail: {response.failure_count})")
+        
+        # Cleanup invalid or unregistered tokens
+        if response.failure_count > 0:
+            batch = db.batch()
+            cleanup_needed = False
+            for idx, resp in enumerate(response.responses):
+                if not resp.success:
+                    err_msg = str(resp.exception).lower() if resp.exception else ""
+                    if "invalid" in err_msg or "not-registered" in err_msg or "unregistered" in err_msg:
+                        bad_token = tokens[idx]
+                        token_ref = db.collection("users").document(user_id).collection("notification_tokens").document(bad_token)
+                        batch.delete(token_ref)
+                        cleanup_needed = True
+            if cleanup_needed:
+                batch.commit()
+                logger.info(f"Cleaned up invalid FCM tokens for user {user_id[:8]}")
+                
+    except Exception as e:
+        logger.warning(f"Push dispatch error for user {user_id[:8]}: {e}")
+
 
 
 # ── Convenience helpers for common notification types ─────────────────
@@ -215,6 +264,9 @@ def notify_new_message(user_id: str, from_name: str, text_preview: str):
         body=text_preview[:100],
         action_url=f"/chat",
     )
+
+notify_chat_message = notify_new_message
+
 
 
 def notify_book_sold(seller_id: str, book_title: str, buyer_name: str, order_id: str):

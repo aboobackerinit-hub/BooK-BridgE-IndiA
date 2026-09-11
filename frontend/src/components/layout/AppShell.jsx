@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import TopNav from "@/components/layout/TopNav";
 
 import MobileNav from "@/components/layout/MobileNav";
+import { InstallBanner } from "@/components/InstallPrompt";
 
 const AppShell = () => {
   const { user, loading } = useAuth();
@@ -16,6 +17,7 @@ const AppShell = () => {
         <Outlet />
       </main>
       <MobileNav />
+      <InstallBanner />
     </div>
   );
 };

@@ -44,9 +44,24 @@ def chat_threads(user: dict = Depends(get_current_user)):
 def chat_messages(other_user_id: str, user: dict = Depends(get_current_user)):
     tid = thread_id_of(user["id"], other_user_id)
     db = get_db()
-    docs = db.collection("messages").where("thread_id", "==", tid).order_by("created_at", direction=firestore.Query.ASCENDING).stream()
+    docs = db.collection("messages").where("thread_id", "==", tid).stream()
     
-    return [d.to_dict() for d in docs]
+    result = []
+    for d in docs:
+        item = d.to_dict()
+        item["id"] = d.id
+        cat = item.get("created_at")
+        if hasattr(cat, "isoformat"):
+            item["created_at"] = cat.isoformat()
+        elif not cat:
+            item["created_at"] = ""
+        else:
+            item["created_at"] = str(cat)
+        result.append(item)
+    
+    # Sort deterministically by created_at ascending (pending / missing timestamps at bottom)
+    result.sort(key=lambda m: m.get("created_at") or "9999-12-31T23:59:59")
+    return result
 
 @router.post("")
 def send_message(body: MessageIn, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
@@ -75,6 +90,9 @@ def _send_internal(user: dict, to_user_id: str, text: str, msg_type: str, backgr
     tid = thread_id_of(user["id"], to_user_id)
     db = get_db()
     
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
     row = {
         "thread_id": tid, 
         "from_user_id": user["id"], 
@@ -83,7 +101,7 @@ def _send_internal(user: dict, to_user_id: str, text: str, msg_type: str, backgr
         "text": text, 
         "type": msg_type,
         "read": False,
-        "created_at": firestore.SERVER_TIMESTAMP
+        "created_at": now_iso
     }
     if metadata:
         row["metadata"] = metadata
@@ -118,7 +136,7 @@ def _send_internal(user: dict, to_user_id: str, text: str, msg_type: str, backgr
         pass
     
     row["id"] = new_msg_ref.id
-    row.pop("created_at", None)
+    row["created_at"] = now_iso
     return row
 
 @router.post("/{other_user_id}/typing")
