@@ -328,20 +328,17 @@ const Composer = ({ user, onPosted }) => {
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { toast.error("Please select an image"); return; }
-    if (file.size > 6 * 1024 * 1024) { toast.error("Image too large (max 6 MB)"); return; }
+    if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+      toast.error("Please select a valid image");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) { toast.error("Image too large (max 15 MB)"); return; }
     
     setUploading(true);
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      // Simple optimization logic on frontend before upload
+      const objectUrl = URL.createObjectURL(file);
       const img = new Image();
-      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataUrl; });
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = objectUrl; });
       const scale = Math.min(1, 1200 / img.width);
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -349,11 +346,22 @@ const Composer = ({ user, onPosted }) => {
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
       setImageUrl(canvas.toDataURL("image/jpeg", 0.85));
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
-      toast.error("Failed to load image");
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        setImageUrl(dataUrl);
+      } catch {
+        toast.error("Failed to load image");
+      }
     } finally {
       setUploading(false);
-      e.target.value = "";
+      if (e.target) e.target.value = "";
     }
   };
 

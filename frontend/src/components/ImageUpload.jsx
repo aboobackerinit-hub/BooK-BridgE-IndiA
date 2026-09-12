@@ -13,26 +13,25 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toast.error("Please select an image");
-    if (file.size > 8 * 1024 * 1024) return toast.error("Image too large (max 8 MB)");
+    if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+      return toast.error("Please select a valid image");
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      return toast.error("Image too large (max 15 MB)");
+    }
     
     setBusy(true);
     try {
-      // 1. Read base64
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      // 1. Efficient loading using URL.createObjectURL (mobile safe)
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Image decode failed"));
+        img.src = objectUrl;
       });
 
-      // 2. Resize via canvas for optimal upload
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = dataUrl;
-      });
       const scale = Math.min(1, maxWidth / img.width);
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -41,16 +40,29 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, w, h);
+      
       const resizedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+      URL.revokeObjectURL(objectUrl);
 
-      // 3. Set image data URL
       onChange(resizedBase64);
-      toast.success("Image selected successfully!");
+      toast.success("Photo attached successfully!");
     } catch (err) {
-      toast.error("Failed to process image");
+      // Fallback for devices restricting objectURL
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        onChange(dataUrl);
+        toast.success("Photo attached successfully!");
+      } catch (fallbackErr) {
+        toast.error("Failed to process image on device");
+      }
     } finally {
       setBusy(false);
-      e.target.value = "";
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -58,7 +70,7 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
 
   return (
     <div className="space-y-2" data-testid={testId}>
-      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/*" onChange={handleFile} className="hidden" />
 
       {value ? (
         <div className="relative group aspect-square max-w-[200px] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-lg">
@@ -84,7 +96,7 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
           ) : (
             <>
               <Upload className="w-6 h-6 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-              <span className="text-xs font-medium">Click to upload product image to Cloudinary</span>
+              <span className="text-xs font-medium">Click or tap to upload photo</span>
             </>
           )}
         </button>
