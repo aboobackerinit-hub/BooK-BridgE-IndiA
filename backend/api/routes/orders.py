@@ -158,6 +158,8 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
     # We will use a transaction to safely deduct stock
     transaction = db.transaction()
 
+    is_online_payment = (body.payment_method == "razorpay")
+    
     @firestore.transactional
     def create_order_in_transaction(transaction, cart_items):
         nonlocal order_items, total, seller_ids, book_titles
@@ -184,7 +186,6 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
             if b.get("stock", 0) < c["quantity"]:
                 raise HTTPException(400, f"Not enough stock for book: {b.get('title')}")
 
-                
             order_items.append({
                 "book_id": book_snapshot.id, 
                 "title": b.get("title"), 
@@ -198,12 +199,13 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
             seller_ids.add(b.get("owner_id"))
             book_titles.append(b.get("title"))
             
-            # Queue the stock decrement
-            books_to_update.append((book_ref, b.get("stock", 0) - c["quantity"]))
+            if not is_online_payment:
+                # Deduct stock immediately ONLY for offline / instant payment methods
+                books_to_update.append((book_ref, b.get("stock", 0) - c["quantity"]))
             
-        # Apply stock updates
-        for book_ref, new_stock in books_to_update:
-            transaction.update(book_ref, {"stock": new_stock})
+        if not is_online_payment:
+            for book_ref, new_stock in books_to_update:
+                transaction.update(book_ref, {"stock": new_stock})
             
         order_no = "BB" + "".join(random.choices(string.digits, k=8))
         order_row = {
@@ -215,10 +217,11 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
             "address": body.address, 
             "phone": body.phone,
             "payment_method": body.payment_method, 
+            "payment_status": "Pending" if is_online_payment else "COD",
             "delivery_method": body.delivery_method,
             "delivery_notes": body.delivery_notes,
             "total": total, 
-            "status": "New",
+            "status": "Payment Pending" if is_online_payment else "New",
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
@@ -233,12 +236,13 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
         logger.error(f"Transaction failed: {e}")
         raise HTTPException(400, str(e))
         
-    # Delete cart items after successful transaction
-    batch = db.batch()
-    cart_refs = db.collection("cart").where("user_id", "==", user["id"]).stream()
-    for c in cart_refs:
-        batch.delete(c.reference)
-    batch.commit()
+    if not is_online_payment:
+        # Delete cart items only for immediate/COD orders
+        batch = db.batch()
+        cart_refs = db.collection("cart").where("user_id", "==", user["id"]).stream()
+        for c in cart_refs:
+            batch.delete(c.reference)
+        batch.commit()
     
     background_tasks.add_task(_post_order_creation_tasks, order_id, list(seller_ids), user, book_titles)
     

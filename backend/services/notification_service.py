@@ -24,6 +24,7 @@ def create_notification(
     body: str,
     data: dict = None,
     action_url: str = None,
+    doc_id: str = None,
 ) -> Optional[str]:
     """
     Create a notification for a user.
@@ -35,6 +36,7 @@ def create_notification(
         body: Notification body text.
         data: Optional additional data payload.
         action_url: Deep link URL for frontend routing.
+        doc_id: Optional deterministic document ID for idempotency/deduplication.
 
     Returns:
         Notification document ID, or None on failure.
@@ -47,24 +49,50 @@ def create_notification(
         return None
 
     try:
+        data_dict = data or {}
         notif = {
             "user_id": user_id,
             "type": notif_type,
             "title": title,
             "body": body,
-            "data": data or {},
+            "data": data_dict,
             "action_url": action_url or "",
             "read": False,
             "created_at": fs.SERVER_TIMESTAMP,
         }
 
-        ref = db.collection("notifications").document()
+        # Copy key identifiers to top-level if present in data
+        if "sender_id" in data_dict:
+            notif["sender_id"] = data_dict["sender_id"]
+        if "sender_name" in data_dict:
+            notif["sender_name"] = data_dict["sender_name"]
+        if "conversation_id" in data_dict:
+            notif["conversation_id"] = data_dict["conversation_id"]
+        if "message_id" in data_dict:
+            notif["message_id"] = data_dict["message_id"]
+        if "message_preview" in data_dict:
+            notif["message_preview"] = data_dict["message_preview"]
+
+        if doc_id:
+            ref = db.collection("notifications").document(doc_id)
+            # Idempotent write: if doc exists, don't duplicate
+            existing = ref.get()
+            if existing.exists:
+                logger.info(f"Notification {doc_id} already exists, skipping duplicate creation")
+                return doc_id
+        else:
+            ref = db.collection("notifications").document()
+
         ref.set(notif)
+        notif["id"] = ref.id
 
-        logger.info(f"Notification created: {notif_type} for user {user_id[:8]}...")
+        logger.info(f"Notification created: {notif_type} for user {user_id[:8]}... (ID: {ref.id})")
 
-        # Future: dispatch push notification
-        dispatch_push(notif)
+        # FCM Push Dispatch (Safe failure wrapper inside dispatch_push)
+        try:
+            dispatch_push(notif)
+        except Exception as push_err:
+            logger.warning(f"Push dispatch error: {push_err}")
 
         return ref.id
 
@@ -217,16 +245,23 @@ def dispatch_push(notification: dict) -> None:
         if not tokens:
             return
             
+        notif_data = notification.get("data") or {}
+        fcm_data = {
+            "notification_id": str(notification.get("id") or ""),
+            "conversation_id": str(notif_data.get("conversation_id") or notification.get("conversation_id") or ""),
+            "message_id": str(notif_data.get("message_id") or notification.get("message_id") or ""),
+            "sender_id": str(notif_data.get("sender_id") or notification.get("sender_id") or ""),
+            "action_url": str(action_url),
+            "title": str(title),
+            "body": str(body),
+        }
+
         message = messaging.MulticastMessage(
             notification=messaging.Notification(
                 title=title,
                 body=body,
             ),
-            data={
-                "action_url": action_url,
-                "title": title,
-                "body": body,
-            },
+            data=fcm_data,
             tokens=tokens,
         )
         response = messaging.send_each_for_multicast(message)
@@ -255,14 +290,30 @@ def dispatch_push(notification: dict) -> None:
 
 # ── Convenience helpers for common notification types ─────────────────
 
-def notify_new_message(user_id: str, from_name: str, text_preview: str):
-    """Notify a user about a new chat message."""
+def notify_new_message(user_id: str, from_name: str, text_preview: str, from_user_id: str = "", message_id: str = None):
+    """Notify a user about a new chat message with idempotency deduplication."""
+    doc_id = f"chat_{message_id}" if message_id else None
+    action_url = f"/chat/{from_user_id}" if from_user_id else "/chat"
+    
+    data = {
+        "type": "chat_message",
+        "sender_id": from_user_id,
+        "sender_name": from_name,
+        "recipient_id": user_id,
+        "conversation_id": from_user_id,
+        "message_id": message_id or "",
+        "message_preview": text_preview[:100],
+        "action_url": action_url,
+    }
+
     create_notification(
         user_id=user_id,
-        notif_type="message",
+        notif_type="chat_message",
         title=f"New message from {from_name}",
         body=text_preview[:100],
-        action_url=f"/chat",
+        data=data,
+        action_url=action_url,
+        doc_id=doc_id,
     )
 
 notify_chat_message = notify_new_message

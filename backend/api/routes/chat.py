@@ -131,7 +131,15 @@ def _send_internal(user: dict, to_user_id: str, text: str, msg_type: str, backgr
     # Trigger notification
     try:
         from backend.services.notification_service import notify_chat_message
-        background_tasks.add_task(notify_chat_message, to_user_id, user.get("name"), text if msg_type == "text" else f"Sent you a {msg_type}")
+        preview_text = text if msg_type == "text" else f"Sent you a {msg_type}"
+        background_tasks.add_task(
+            notify_chat_message,
+            to_user_id,
+            user.get("name") or "User",
+            preview_text,
+            user["id"],
+            new_msg_ref.id,
+        )
     except Exception:
         pass
     

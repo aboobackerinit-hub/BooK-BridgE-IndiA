@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { getCache, setCache } from "@/lib/dbCache";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,18 +80,42 @@ const StorePage = () => {
   const navigate = useNavigate();
 
   const load = async () => {
-    setLoading(true);
+    const cacheKey = `store_books_${cat}_${q || "all"}`;
+    // 1. Instantly load from cache if available
+    const cached = await getCache(cacheKey);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setBooks(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // 2. Silently fetch fresh data in background
     try {
       const params = {};
       if (cat && cat !== "All") params.category = cat;
       if (q) params.q = q;
       const { data } = await api.get("/books", { params });
       setBooks(data);
-    } catch { toast.error("Failed to load books"); }
-    setLoading(false);
+      setCache(cacheKey, data);
+    } catch {
+      if (!cached) toast.error("Failed to load books");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { api.get("/categories").then((r) => setCats(r.data)); }, []);
+  useEffect(() => {
+    getCache("store_categories").then((cached) => {
+      if (cached && Array.isArray(cached)) setCats(cached);
+    });
+
+    api.get("/categories").then((r) => {
+      setCats(r.data);
+      setCache("store_categories", r.data);
+    }).catch(() => {});
+  }, []);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [cat]);
 

@@ -9,19 +9,29 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 def get_notifications(user: dict = Depends(get_current_user)):
     db = get_db()
     
-    # 1. Unread chat messages
+    # 1. Unread chat messages in message threads
     count_res = db.collection("messages").where("to_user_id", "==", user["id"]).where("read", "==", False).count().get()
     unread_messages = count_res[0][0].value if count_res else 0
     
-    # 2. General notifications
+    # 2. In-app notifications
     notif_docs = db.collection("notifications").where("user_id", "==", user["id"]).order_by("created_at", direction=firestore.Query.DESCENDING).limit(50).stream()
     
-    general = []
+    notifications_list = []
     unread_general = 0
     for doc in notif_docs:
         d = doc.to_dict()
         d["id"] = doc.id
-        general.append(d)
+        
+        # Serialize timestamp cleanly
+        cat = d.get("created_at")
+        if hasattr(cat, "isoformat"):
+            d["created_at"] = cat.isoformat()
+        elif hasattr(cat, "timestamp"):
+            d["created_at"] = str(cat)
+        elif not cat:
+            d["created_at"] = ""
+            
+        notifications_list.append(d)
         if not d.get("read"):
             unread_general += 1
             
@@ -38,7 +48,7 @@ def get_notifications(user: dict = Depends(get_current_user)):
         "unread_messages": unread_messages,
         "unread_general": unread_general,
         "pending_orders": pending_orders,
-        "notifications": general
+        "notifications": notifications_list
     }
 
 @router.post("/{notification_id}/read")
@@ -51,10 +61,42 @@ def mark_read(notification_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(404, "Notification not found")
         
     if doc.to_dict().get("user_id") != user["id"]:
-        raise HTTPException(403, "Not allowed")
+        raise HTTPException(403, "Not allowed to modify another user's notification")
         
-    doc_ref.update({"read": True})
+    doc_ref.update({
+        "read": True,
+        "read_at": firestore.SERVER_TIMESTAMP
+    })
     return {"ok": True}
+
+@router.post("/chat/{sender_id}/read")
+def mark_chat_notifications_read(sender_id: str, user: dict = Depends(get_current_user)):
+    """Mark all unread in-app notifications from sender_id as read when user views conversation."""
+    db = get_db()
+    
+    # Query unread notifications for recipient from this sender/conversation
+    docs = db.collection("notifications") \
+        .where("user_id", "==", user["id"]) \
+        .where("read", "==", False) \
+        .stream()
+    
+    batch = db.batch()
+    count = 0
+    for doc in docs:
+        d = doc.to_dict()
+        notif_sender = d.get("sender_id") or d.get("conversation_id") or d.get("data", {}).get("sender_id")
+        if notif_sender == sender_id:
+            batch.update(doc.reference, {"read": True, "read_at": firestore.SERVER_TIMESTAMP})
+            count += 1
+            if count >= 490:
+                batch.commit()
+                batch = db.batch()
+                count = 0
+                
+    if count > 0:
+        batch.commit()
+        
+    return {"ok": True, "updated": count}
 
 @router.post("/read-all")
 def mark_all_read(user: dict = Depends(get_current_user)):
@@ -64,7 +106,7 @@ def mark_all_read(user: dict = Depends(get_current_user)):
     batch = db.batch()
     count = 0
     for doc in docs:
-        batch.update(doc.reference, {"read": True})
+        batch.update(doc.reference, {"read": True, "read_at": firestore.SERVER_TIMESTAMP})
         count += 1
         if count >= 490:
             batch.commit()

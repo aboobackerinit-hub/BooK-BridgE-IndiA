@@ -25,9 +25,24 @@ const statusColor = (s) => {
   return map[s] || "bg-muted";
 };
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const loadOrders = () => {
     setLoading(true);
@@ -40,6 +55,52 @@ const OrdersPage = () => {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  const handleRetryPayment = async (order) => {
+    try {
+      const isRzpLoaded = await loadRazorpayScript();
+      if (!isRzpLoaded) return toast.error("Unable to load Razorpay Checkout.");
+
+      const { data: rzpOrder } = await api.post("/payments/create-order", {
+        order_id: order.id,
+      });
+
+      const options = {
+        key: rzpOrder.key_id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency || "INR",
+        name: "BookBridge India",
+        description: `Order #${order.order_no}`,
+        order_id: rzpOrder.razorpay_order_id,
+        handler: async (response) => {
+          try {
+            await api.post("/payments/verify", {
+              order_id: order.id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            toast.success(`Payment verified! Order #${order.order_no} paid.`);
+          } catch {
+            toast.error("Payment verification failed.");
+          } finally {
+            loadOrders();
+          }
+        },
+        prefill: {
+          name: user?.name || "",
+          email: user?.email || "",
+          contact: order.phone || user?.phone || "",
+        },
+        theme: { color: "#16a34a" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      toast.error("Failed to initiate payment: " + (err.response?.data?.detail || err.message));
+    }
+  };
 
   const cancelOrder = async (orderId) => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
@@ -75,6 +136,16 @@ const OrdersPage = () => {
                 <div className="font-mono font-semibold">{o.order_no}</div>
               </div>
               <div className="flex items-center gap-2">
+                {o.payment_method === "razorpay" && o.payment_status === "Pending" && o.status !== "Cancelled" && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleRetryPayment(o)}
+                    className="rounded-full text-xs h-8 px-3 font-semibold bg-primary text-primary-foreground hover:opacity-90"
+                    data-testid={`retry-payment-${o.id}`}
+                  >
+                    💳 Pay Now
+                  </Button>
+                )}
                 {!["Cancelled", "Completed", "Shipped", "Delivered"].includes(o.status) && (
                   <Button
                     size="sm"
@@ -86,6 +157,11 @@ const OrdersPage = () => {
                     <XCircle className="w-3.5 h-3.5 mr-1" />
                     Cancel Order
                   </Button>
+                )}
+                {o.payment_status && (
+                  <Badge className={o.payment_status === "Paid" ? "bg-emerald-600 text-white font-bold" : "bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium"}>
+                    {o.payment_status === "Paid" ? "💳 Paid" : `Payment: ${o.payment_status}`}
+                  </Badge>
                 )}
                 <Badge className={statusColor(o.status)}>{o.status}</Badge>
               </div>

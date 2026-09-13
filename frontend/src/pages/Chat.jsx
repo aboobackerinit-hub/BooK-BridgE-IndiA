@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import api from "@/lib/api";
+import { getCache, setCache } from "@/lib/dbCache";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,15 +63,22 @@ const ChatPage = () => {
   };
 
   const loadThreads = async () => {
+    const cacheKey = `chat_threads_${user?.id || "anon"}`;
+    const cached = await getCache(cacheKey);
+    if (cached && Array.isArray(cached)) {
+      setThreads(cached);
+    }
     try {
       const { data } = await api.get("/chat/threads");
       setThreads(data);
+      setCache(cacheKey, data);
     } catch (err) {
       console.error("Failed to load threads", err);
     }
   };
 
-  useEffect(() => { loadThreads(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadThreads(); }, [user?.id]);
 
   useEffect(() => {
     if (!userId) {
@@ -80,11 +88,24 @@ const ChatPage = () => {
       return;
     }
 
-    setMessages([]);
     setHasUnreadBelow(false);
     isNearBottomRef.current = true;
 
-    api.get(`/users/${userId}`).then((r) => setOtherUser(r.data)).catch(() => {});
+    // Instantly load cached user & messages
+    getCache(`chat_user_${userId}`).then((cachedUser) => {
+      if (cachedUser) setOtherUser(cachedUser);
+    });
+    getCache(`chat_msg_${userId}`).then((cachedMsgs) => {
+      if (cachedMsgs && Array.isArray(cachedMsgs) && cachedMsgs.length > 0) {
+        setMessages(sortMessages(cachedMsgs));
+        setTimeout(() => scrollToBottom(false), 50);
+      }
+    });
+
+    api.get(`/users/${userId}`).then((r) => {
+      setOtherUser(r.data);
+      setCache(`chat_user_${userId}`, r.data);
+    }).catch(() => {});
 
     const load = async () => {
       try {
@@ -98,7 +119,10 @@ const ChatPage = () => {
           return sorted;
         });
 
+        setCache(`chat_msg_${userId}`, sorted);
+
         api.post(`/chat/${userId}/read`).catch(() => {});
+        api.post(`/notifications/chat/${userId}/read`).catch(() => {});
       } catch (err) {
         console.error("Failed to fetch messages", err);
       }

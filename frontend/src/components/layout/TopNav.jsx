@@ -125,31 +125,109 @@ const TopNav = () => {
                   aria-label="Notifications"
                 >
                   <Bell className="w-4 h-4" />
-                  {(notif.unread_messages > 0 || notif.pending_orders > 0) && (
+                  {((notif.unread_general || notif.unread_messages || 0) + (notif.pending_orders || 0)) > 0 && (
                     <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
-                      {notif.unread_messages + notif.pending_orders}
+                      {(notif.unread_general || notif.unread_messages || 0) + (notif.pending_orders || 0)}
                     </span>
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="end" className="w-80 max-h-[80vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <DropdownMenuLabel className="p-0 font-serif font-semibold">Notifications</DropdownMenuLabel>
+                  {(notif.unread_general || 0) > 0 && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.post("/notifications/read-all");
+                          setNotif((prev) => ({
+                            ...prev,
+                            unread_general: 0,
+                            unread_messages: 0,
+                            notifications: prev.notifications?.map((item) => ({ ...item, read: true })) || [],
+                          }));
+                        } catch {}
+                      }}
+                      className="text-[11px] text-primary hover:underline font-medium"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
                 {notif.pending_orders > 0 && (
-                  <DropdownMenuItem onClick={() => navigate(dashboardRoute(user?.role) || "/store")}>
-                    <Package className="w-4 h-4 mr-2 text-primary" />
-                    <span>{notif.pending_orders} pending order(s)</span>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => navigate(dashboardRoute(user?.role) || "/store")}
+                      className="p-3 cursor-pointer"
+                    >
+                      <Package className="w-4 h-4 mr-2 text-primary shrink-0" />
+                      <span className="text-sm font-medium">{notif.pending_orders} pending order(s)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
                 )}
-                {notif.unread_messages > 0 && (
-                  <DropdownMenuItem onClick={() => navigate("/chat")}>
-                    <MessageCircle className="w-4 h-4 mr-2 text-primary" />
-                    <span>{notif.unread_messages} unread message(s)</span>
-                  </DropdownMenuItem>
-                )}
-                {notif.pending_orders === 0 && notif.unread_messages === 0 && (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    No new notifications
+
+                {notif.notifications && notif.notifications.length > 0 ? (
+                  notif.notifications.map((n) => {
+                    const isUnread = !n.read;
+                    const senderName = n.sender_name || (n.title ? n.title.replace("New message from ", "") : "Message");
+                    const preview = n.message_preview || n.body || "";
+                    const actionUrl = n.action_url || (n.sender_id ? `/chat/${n.sender_id}` : "/chat");
+
+                    return (
+                      <DropdownMenuItem
+                        key={n.id}
+                        onClick={async () => {
+                          if (isUnread) {
+                            try {
+                              await api.post(`/notifications/${n.id}/read`);
+                              setNotif((prev) => ({
+                                ...prev,
+                                unread_general: Math.max(0, (prev.unread_general || 1) - 1),
+                                unread_messages: Math.max(0, (prev.unread_messages || 1) - 1),
+                                notifications: prev.notifications.map((item) =>
+                                  item.id === n.id ? { ...item, read: true } : item
+                                ),
+                              }));
+                            } catch {}
+                          }
+                          navigate(actionUrl);
+                        }}
+                        className={`p-3 cursor-pointer flex flex-col items-start gap-1 text-left ${
+                          isUnread ? "bg-primary/5 hover:bg-primary/10" : "opacity-80"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isUnread && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                            <span className={`text-xs truncate ${isUnread ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                              {senderName}
+                            </span>
+                          </div>
+                          {n.created_at && (
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {(() => {
+                                try {
+                                  return formatDistanceToNow(new Date(n.created_at), { addSuffix: true });
+                                } catch {
+                                  return "";
+                                }
+                              })()}
+                            </span>
+                          )}
+                        </div>
+                        {preview && (
+                          <div className="text-xs text-muted-foreground line-clamp-2 pl-3.5">
+                            {preview}
+                          </div>
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })
+                ) : (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No notifications yet
                   </div>
                 )}
               </DropdownMenuContent>
