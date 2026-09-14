@@ -18,6 +18,25 @@ import ImageUpload from "@/components/ImageUpload";
 
 const CATEGORIES = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Children", "Academic", "Poetry", "Regional", "General"];
 
+const renderDescription = (text) => {
+  if (!text) return null;
+  const hasMalayalam = /[\u0D00-\u0D7F]/.test(text);
+  if (!hasMalayalam) {
+    return text;
+  }
+  const parts = text.split(/([\u0D00-\u0D7F\s]+)/g);
+  return parts.map((part, index) => {
+    if (/[\u0D00-\u0D7F]/.test(part)) {
+      return (
+        <span key={index} className="revathi-malayalam-text">
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+};
+
 const BookDetail = () => {
   const { id } = useParams();
   const [book, setBook] = useState(null);
@@ -41,17 +60,23 @@ const BookDetail = () => {
 
   const addToCart = async () => {
     try {
-      await api.post("/cart", { book_id: id, quantity: 1 });
-      toast.success("Added to cart");
+      const { data } = await api.post("/cart", { book_id: id, quantity: 1, mode: "set_if_exists" });
+      if (data?.already_in_cart) {
+        toast.info("Book is already in your cart");
+      } else {
+        toast.success("Added to cart");
+      }
     } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
   };
 
   const buyNow = async () => {
     try {
-      const tId = toast.loading("Adding to cart & opening checkout...");
-      await api.post("/cart", { book_id: id, quantity: 1 });
-      toast.dismiss(tId);
-      toast.success("Added to cart");
+      const { data } = await api.post("/cart", { book_id: id, quantity: 1, mode: "set_if_exists" });
+      if (data?.already_in_cart) {
+        toast.info("Book is already in your cart");
+      } else {
+        toast.success("Added to cart");
+      }
       navigate("/cart");
     } catch (e) {
       toast.error(e.response?.data?.detail || "Failed to add book to cart");
@@ -167,7 +192,7 @@ const BookDetail = () => {
             </span>
           </div>
 
-          <p className="text-foreground/80 leading-relaxed">{book.description}</p>
+          <p className="text-foreground/80 leading-relaxed font-revathi-desc">{renderDescription(book.description)}</p>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="border-l-2 border-border pl-3">

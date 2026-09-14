@@ -4,7 +4,7 @@ import { Upload, X, Loader2, Camera, CloudCheck } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 
-const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId = "image-upload" }) => {
+const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId = "image-upload", label = "Upload book photo", sublabel = "Add a clear photo of your book cover" }) => {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -89,14 +89,15 @@ const ImageUpload = ({ value, onChange, maxWidth = 800, aspect = "cover", testId
           type="button"
           onClick={pick}
           disabled={busy}
-          className="w-full h-32 rounded-2xl border-2 border-dashed border-zinc-800 hover:border-amber-500/50 bg-zinc-950/50 hover:bg-zinc-900/50 transition-all flex flex-col items-center justify-center gap-2 text-zinc-400 hover:text-amber-400 group"
+          className="w-full h-32 rounded-2xl border-2 border-dashed border-zinc-800 hover:border-amber-500/50 bg-zinc-950/50 hover:bg-zinc-900/50 transition-all flex flex-col items-center justify-center gap-1.5 p-3 text-zinc-400 hover:text-amber-400 group"
         >
           {busy ? (
             <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
           ) : (
             <>
               <Upload className="w-6 h-6 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-              <span className="text-xs font-medium">Click or tap to upload photo</span>
+              <span className="text-xs font-semibold text-foreground group-hover:text-amber-400 transition-colors">{label}</span>
+              {sublabel && <span className="text-[10px] text-muted-foreground">{sublabel}</span>}
             </>
           )}
         </button>

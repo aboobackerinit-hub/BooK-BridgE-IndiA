@@ -50,28 +50,57 @@ def add_cart(body: CartItemIn, user: dict = Depends(get_current_user)):
     if current_stock <= 0:
         raise HTTPException(400, f"Book '{b.get('title')}' is currently out of stock")
 
-        
     docs = db.collection("cart").where("user_id", "==", user["id"]).where("book_id", "==", body.book_id).limit(1).stream()
     existing = list(docs)
     
     if existing:
         doc = existing[0]
-        new_qty = doc.to_dict().get("quantity", 0) + body.quantity
-        if new_qty > current_stock:
-            raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
-        db.collection("cart").document(doc.id).update({"quantity": new_qty})
+        existing_qty = doc.to_dict().get("quantity", 1)
+        if body.mode == "add":
+            new_qty = existing_qty + body.quantity
+            if new_qty > current_stock:
+                raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
+            db.collection("cart").document(doc.id).update({"quantity": new_qty})
+            return {"ok": True, "already_in_cart": True, "quantity": new_qty}
+        else:
+            # Default for Buy/Add to Cart button: Do NOT silently increment quantity!
+            return {"ok": True, "already_in_cart": True, "quantity": existing_qty}
     else:
-        if body.quantity > current_stock:
-            raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
+        initial_qty = min(body.quantity, current_stock) if body.quantity > 0 else 1
         new_ref = db.collection("cart").document()
         new_ref.set({
             "user_id": user["id"], 
             "book_id": body.book_id, 
-            "quantity": body.quantity,
+            "quantity": initial_qty,
             "created_at": firestore.SERVER_TIMESTAMP
         })
+        return {"ok": True, "already_in_cart": False, "quantity": initial_qty}
+
+@router.put("/{book_id}")
+@router.post("/{book_id}")
+def update_cart_quantity(book_id: str, payload: dict, user: dict = Depends(get_current_user)):
+    db = get_db()
+    new_qty = int(payload.get("quantity", 1))
+    if new_qty < 1:
+        raise HTTPException(400, "Minimum quantity is 1")
         
-    return {"ok": True}
+    book_doc = db.collection("books").document(book_id).get()
+    if not book_doc.exists:
+        raise HTTPException(404, "Book not found")
+        
+    b = book_doc.to_dict()
+    current_stock = b.get("stock", 0)
+    if new_qty > current_stock:
+        raise HTTPException(400, f"Only {current_stock} copy(ies) available in stock")
+        
+    docs = db.collection("cart").where("user_id", "==", user["id"]).where("book_id", "==", book_id).limit(1).stream()
+    existing = list(docs)
+    if not existing:
+        raise HTTPException(404, "Item not in cart")
+        
+    doc = existing[0]
+    db.collection("cart").document(doc.id).update({"quantity": new_qty})
+    return {"ok": True, "quantity": new_qty}
 
 @router.delete("/{book_id}")
 def remove_cart(book_id: str, user: dict = Depends(get_current_user)):

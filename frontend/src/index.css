@@ -158,3 +158,12 @@ body {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
+
+/* Malayalam Book Description Typography */
+.font-revathi-desc,
+.revathi-malayalam-text {
+  font-family: 'Revathi', sans-serif;
+  font-size: 9px;
+  line-height: 1.6;
+}
+

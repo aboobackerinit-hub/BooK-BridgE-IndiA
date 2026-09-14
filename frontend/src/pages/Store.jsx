@@ -80,10 +80,11 @@ const StorePage = () => {
   const navigate = useNavigate();
 
   const load = async () => {
-    const cacheKey = `store_books_${cat}_${q || "all"}`;
+    const trimmedQ = q ? q.trim() : "";
+    const cacheKey = `store_books_${cat}_${trimmedQ || "all"}`;
     // 1. Instantly load from cache if available
     const cached = await getCache(cacheKey);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
+    if (cached && Array.isArray(cached)) {
       setBooks(cached);
       setLoading(false);
     } else {
@@ -94,7 +95,7 @@ const StorePage = () => {
     try {
       const params = {};
       if (cat && cat !== "All") params.category = cat;
-      if (q) params.q = q;
+      if (trimmedQ) params.q = trimmedQ;
       const { data } = await api.get("/books", { params });
       setBooks(data);
       setCache(cacheKey, data);
@@ -117,9 +118,17 @@ const StorePage = () => {
   }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [cat]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      load();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [q, cat]);
 
-  const submitSearch = (e) => { e.preventDefault(); load(); };
+  const submitSearch = (e) => {
+    if (e) e.preventDefault();
+    load();
+  };
 
   const featured = books.filter((b) => b.featured);
 
@@ -135,38 +144,35 @@ const StorePage = () => {
         <span className="font-medium text-sm hidden md:inline">Sell a Book</span>
       </button>
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-border">
-        <OptimizedImage src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
-        <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/60 to-transparent" />
-        <div className="relative px-6 py-12 md:px-16 md:py-24 max-w-3xl text-white">
-          <Badge className="bg-white/20 backdrop-blur text-white border border-white/30 mb-4">
-            <Sparkles className="w-3 h-3 mr-1" aria-hidden="true" /> Discover · Read · Discuss
-          </Badge>
-          <h1 className="font-serif text-3xl sm:text-4xl md:text-6xl leading-tight mb-4">
+      <section className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-border shadow-sm">
+        <OptimizedImage src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover object-center" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/30 dark:from-slate-950/90 dark:via-slate-950/70 dark:to-slate-950/40" />
+        <div className="relative px-4 py-5 sm:px-8 sm:py-10 md:px-16 md:py-20 max-w-3xl">
+          <h1 className="font-serif text-2xl sm:text-4xl md:text-6xl leading-tight mb-2 md:mb-4 text-white dark:text-emerald-50 drop-shadow-sm">
             Every book has a<br/>second life.
           </h1>
-          <p className="text-white/80 text-lg max-w-xl mb-6">
+          <p className="text-white/90 dark:text-emerald-100/80 text-xs sm:text-base md:text-lg max-w-xl mb-3 md:mb-6 leading-normal sm:leading-relaxed">
             The largest community of readers, sellers and publishers in India — one shelf at a time.
           </p>
           <form onSubmit={submitSearch} className="flex gap-2 max-w-lg" data-testid="store-search-form">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 data-testid="store-search-input"
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search title, author, ISBN..."
-                className="pl-10 h-11 rounded-full bg-white/95 border-0 text-foreground"
+                className="pl-8 sm:pl-10 h-9 sm:h-10 md:h-11 rounded-full bg-white/95 dark:bg-card/95 border-0 text-foreground text-xs sm:text-sm shadow-sm"
               />
             </div>
-            <Button type="submit" className="rounded-full h-11 px-6" data-testid="store-search-btn">Search</Button>
+            <Button type="submit" className="rounded-full h-9 sm:h-10 md:h-11 px-4 sm:px-6 text-xs sm:text-sm shrink-0 shadow-sm" data-testid="store-search-btn">Search</Button>
           </form>
         </div>
       </section>
 
       {/* Featured strip */}
-      {featured.length > 0 && (
+      {!q.trim() && featured.length > 0 && (
         <section>
           <div className="flex items-end justify-between mb-4">
             <div>

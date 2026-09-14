@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, ShoppingBag, MapPin, Phone, CreditCard } from "lucide-react";
+import { Trash2, ShoppingBag, MapPin, Phone, CreditCard, Minus, Plus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -56,6 +56,41 @@ const CartPage = () => {
     await api.delete(`/cart/${bookId}`);
     toast.success("Removed");
     load();
+  };
+
+  const [updatingIds, setUpdatingIds] = useState([]);
+
+  const updateQuantity = async (bookId, newQty, maxStock) => {
+    if (newQty < 1) return;
+    if (updatingIds.includes(bookId)) return; // Prevent duplicate rapid taps
+    if (maxStock && newQty > maxStock) {
+      toast.error(`Only ${maxStock} copy(ies) available in stock`);
+      return;
+    }
+
+    setUpdatingIds((prev) => [...prev, bookId]);
+
+    // Optimistic UI update for immediate total recalculation
+    setCart((prev) => {
+      const updatedItems = prev.items.map((i) => {
+        if (i.book_id === bookId) {
+          return { ...i, quantity: newQty };
+        }
+        return i;
+      });
+      const newTotal = updatedItems.reduce((acc, i) => acc + ((parseFloat(i.book?.price) || 0) * i.quantity), 0);
+      return { items: updatedItems, total: newTotal };
+    });
+
+    try {
+      await api.put(`/cart/${bookId}`, { quantity: newQty });
+      await load();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to update quantity");
+      await load();
+    } finally {
+      setUpdatingIds((prev) => prev.filter((id) => id !== bookId));
+    }
   };
 
   const placeOrder = async () => {
@@ -155,29 +190,72 @@ const CartPage = () => {
             <Link to="/store"><Button className="rounded-full">Browse books</Button></Link>
           </Card>
         ) : (
-          cart.items.map((item) => (
-            <Card key={item.id} className="p-4 flex gap-4" data-testid={`cart-item-${item.book_id}`}>
-              <div className="w-20 h-28 rounded-lg overflow-hidden bg-muted shrink-0">
-                {item.book?.image_url && <img src={item.book.image_url} alt="" className="w-full h-full object-cover" />}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-serif font-semibold">{item.book?.title}</h3>
-                <p className="text-sm text-muted-foreground">by {item.book?.author}</p>
-                <div className="mt-2 flex items-center gap-3">
-                  <span className="font-mono text-primary font-semibold">₹{item.book?.price}</span>
-                  <span className="text-xs text-muted-foreground">× {item.quantity}</span>
+          cart.items.map((item) => {
+            const itemPrice = parseFloat(item.book?.price) || 0;
+            const itemSubtotal = itemPrice * item.quantity;
+            const stock = item.book?.stock || 0;
+
+            return (
+              <Card key={item.id} className="p-4 flex gap-4 items-start" data-testid={`cart-item-${item.book_id}`}>
+                <div className="w-20 h-28 rounded-lg overflow-hidden bg-muted shrink-0">
+                  {item.book?.image_url && <img src={item.book.image_url} alt="" className="w-full h-full object-cover" />}
                 </div>
-                {(item.book?.stock || 0) < item.quantity && (
-                  <div className="text-xs text-destructive mt-1">
-                    {item.book?.stock === 0 ? "Out of stock" : `Only ${item.book?.stock} available`}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-serif font-semibold text-base leading-snug">{item.book?.title}</h3>
+                      <p className="text-xs text-muted-foreground">by {item.book?.author}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => remove(item.book_id)} className="text-destructive h-8 w-8 shrink-0" data-testid={`remove-${item.book_id}`} title="Remove item">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => remove(item.book_id)} className="text-destructive" data-testid={`remove-${item.book_id}`}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </Card>
-          ))
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-mono text-primary font-bold text-base">₹{itemSubtotal.toFixed(2)}</div>
+                      <div className="text-[11px] text-muted-foreground">₹{itemPrice} × {item.quantity}</div>
+                    </div>
+
+                    {/* Touch-Friendly Quantity Control Selector */}
+                    <div className="flex items-center border border-border rounded-lg bg-background overflow-hidden shadow-sm" data-testid={`qty-control-${item.book_id}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-none text-foreground hover:bg-muted"
+                        onClick={() => updateQuantity(item.book_id, item.quantity - 1, stock)}
+                        disabled={item.quantity <= 1}
+                        data-testid={`qty-minus-${item.book_id}`}
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </Button>
+                      <span className="w-8 text-center font-mono text-xs font-bold select-none" data-testid={`qty-val-${item.book_id}`}>
+                        {item.quantity}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-none text-foreground hover:bg-muted"
+                        onClick={() => updateQuantity(item.book_id, item.quantity + 1, stock)}
+                        disabled={item.quantity >= stock}
+                        data-testid={`qty-plus-${item.book_id}`}
+                        title={item.quantity >= stock ? `Max stock reached (${stock})` : "Increase quantity"}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {stock < item.quantity && (
+                    <div className="text-xs text-destructive font-medium mt-1">
+                      {stock === 0 ? "Out of stock" : `Only ${stock} copy(ies) available in stock`}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })
         )}
       </div>
 

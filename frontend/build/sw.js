@@ -48,7 +48,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting();
+  // self.skipWaiting(); -- disabled to prevent dev reload loops
 });
 
 self.addEventListener('activate', (event) => {
@@ -59,7 +59,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  self.clients.claim();
+  // self.clients.claim(); -- disabled to prevent dev reload loops
 });
 
 self.addEventListener('fetch', (event) => {

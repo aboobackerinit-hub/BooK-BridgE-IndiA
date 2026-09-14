@@ -136,6 +136,7 @@ class CommentIn(BaseModel):
 class CartItemIn(BaseModel):
     book_id: str
     quantity: int = 1
+    mode: Optional[str] = "set_if_exists"
 
 
 class OrderIn(BaseModel):

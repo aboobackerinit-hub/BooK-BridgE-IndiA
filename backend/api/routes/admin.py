@@ -18,7 +18,7 @@ def admin_stats(user: dict = Depends(require_role("admin"))):
     total_users_res = db.collection("users").count().get()
     total_users = total_users_res[0][0].value if total_users_res else 0
     
-    total_books_res = db.collection("books").count().get()
+    total_books_res = db.collection("books").where("approved", "==", True).count().get()
     total_books = total_books_res[0][0].value if total_books_res else 0
     
     total_orders_res = db.collection("orders").count().get()
@@ -182,7 +182,7 @@ def admin_feature(book_id: str, user: dict = Depends(require_role("admin"))):
 @router.get("/books")
 def admin_books(user: dict = Depends(require_role("admin"))):
     db = get_db()
-    docs = db.collection("books").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    docs = db.collection("books").where("approved", "==", True).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
     results = []
     for doc in docs:
         d = doc.to_dict()
