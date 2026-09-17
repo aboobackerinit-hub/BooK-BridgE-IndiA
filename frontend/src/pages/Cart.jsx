@@ -8,6 +8,7 @@ import { Trash2, ShoppingBag, MapPin, Phone, CreditCard, Minus, Plus } from "luc
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { sanitizePhoneInput, isValidIndianPhone, PHONE_ERROR_MESSAGE } from "@/lib/phoneValidation";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -27,6 +28,7 @@ const CartPage = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [payment, setPayment] = useState("razorpay");
   const [placing, setPlacing] = useState(false);
   const navigate = useNavigate();
@@ -45,7 +47,7 @@ const CartPage = () => {
     const t1 = setTimeout(() => load(), 500);
     const t2 = setTimeout(() => load(), 1200);
     if (user?.address) setAddress(user.address);
-    if (user?.phone) setPhone(user.phone);
+    if (user?.phone) setPhone(sanitizePhoneInput(user.phone));
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -94,11 +96,22 @@ const CartPage = () => {
   };
 
   const placeOrder = async () => {
-    if (!address.trim() || !phone.trim()) return toast.error("Address and phone required");
+    if (!address.trim()) return toast.error("Address and phone required");
+    if (!phone.trim()) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+      return toast.error("Address and phone required");
+    }
+    if (!isValidIndianPhone(phone)) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+      return toast.error(PHONE_ERROR_MESSAGE);
+    }
+    setPhoneError("");
+    const cleanPhone = sanitizePhoneInput(phone);
+
     setPlacing(true);
     try {
       // 1. Place order in BookBridge backend
-      const { data: orderData } = await api.post("/orders", { address, phone, payment_method: payment });
+      const { data: orderData } = await api.post("/orders", { address, phone: cleanPhone, payment_method: payment });
 
       if (payment === "razorpay") {
         try {
@@ -142,7 +155,7 @@ const CartPage = () => {
             prefill: {
               name: user?.name || "",
               email: user?.email || "",
-              contact: phone
+              contact: cleanPhone
             },
             theme: {
               color: "#16a34a"
@@ -268,7 +281,35 @@ const CartPage = () => {
           </div>
           <div>
             <Label htmlFor="ph"><Phone className="w-3 h-3 inline mr-1" /> Phone</Label>
-            <Input id="ph" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 90000 00000" data-testid="checkout-phone" />
+            <div className="flex items-center gap-2 mt-1">
+              <div className="px-3 py-2 bg-muted border border-input rounded-md text-sm font-medium text-muted-foreground select-none shrink-0" data-testid="phone-country-code">
+                +91
+              </div>
+              <Input
+                id="ph"
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                value={phone}
+                onChange={(e) => {
+                  const sanitized = sanitizePhoneInput(e.target.value);
+                  setPhone(sanitized);
+                  if (phoneError) {
+                    if (isValidIndianPhone(sanitized)) {
+                      setPhoneError("");
+                    }
+                  }
+                }}
+                placeholder="9876543210"
+                className="font-mono"
+                data-testid="checkout-phone"
+              />
+            </div>
+            {phoneError && (
+              <p className="text-xs text-destructive mt-1 font-medium" data-testid="phone-error-msg">
+                {phoneError}
+              </p>
+            )}
           </div>
           <div>
             <Label><CreditCard className="w-3 h-3 inline mr-1" /> Payment Method</Label>

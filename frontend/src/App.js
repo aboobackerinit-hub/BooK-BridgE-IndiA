@@ -23,6 +23,18 @@ const SellBookPage = React.lazy(() => import("@/pages/SellBook"));
 const SellerDashboard = React.lazy(() => import("@/pages/SellerDashboard"));
 const AdminDashboard = React.lazy(() => import("@/pages/AdminDashboard"));
 
+// Legal Pages
+const { LegalLayout } = require("@/pages/legal/LegalLayout");
+const Terms = React.lazy(() => import("@/pages/legal/Terms"));
+const Privacy = React.lazy(() => import("@/pages/legal/Privacy"));
+const MarketplaceRules = React.lazy(() => import("@/pages/legal/MarketplaceRules"));
+const Refunds = React.lazy(() => import("@/pages/legal/Refunds"));
+const Prohibited = React.lazy(() => import("@/pages/legal/Prohibited"));
+const Safety = React.lazy(() => import("@/pages/legal/Safety"));
+const IntellectualProperty = React.lazy(() => import("@/pages/legal/IntellectualProperty"));
+const Grievance = React.lazy(() => import("@/pages/legal/Grievance"));
+const FAQ = React.lazy(() => import("@/pages/legal/FAQ"));
+
 const RoleGuard = ({ roles, children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -57,6 +69,20 @@ function App() {
                 <Route path="/store-owner" element={<RoleGuard roles={["store_owner", "admin"]}><SellerDashboard role="store_owner" /></RoleGuard>} />
                 <Route path="/publisher" element={<RoleGuard roles={["publisher", "admin"]}><SellerDashboard role="publisher" /></RoleGuard>} />
                 <Route path="/admin" element={<RoleGuard roles={["admin"]}><AdminDashboard /></RoleGuard>} />
+                
+                {/* LEGAL HUB */}
+                <Route path="/legal" element={<LegalLayout />}>
+                  <Route index element={<Navigate to="terms" replace />} />
+                  <Route path="terms" element={<Terms />} />
+                  <Route path="privacy" element={<Privacy />} />
+                  <Route path="marketplace-rules" element={<MarketplaceRules />} />
+                  <Route path="refunds" element={<Refunds />} />
+                  <Route path="prohibited" element={<Prohibited />} />
+                  <Route path="safety" element={<Safety />} />
+                  <Route path="ip" element={<IntellectualProperty />} />
+                  <Route path="grievance" element={<Grievance />} />
+                  <Route path="faq" element={<FAQ />} />
+                </Route>
               </Route>
               <Route path="*" element={<Navigate to="/store" replace />} />
             </Routes>

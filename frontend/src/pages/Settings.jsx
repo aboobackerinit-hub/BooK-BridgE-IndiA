@@ -24,6 +24,7 @@ import {
   User, Lock, Bell, Ban, Trash2, Globe, Moon, Sun, Mail, ShieldAlert
 } from "lucide-react";
 import ImageUpload from "@/components/ImageUpload";
+import { sanitizePhoneInput, isValidIndianPhone, PHONE_ERROR_MESSAGE } from "@/lib/phoneValidation";
 
 const SettingsPage = () => {
   const { user, setUser, logout } = useAuth();
@@ -35,7 +36,7 @@ const SettingsPage = () => {
     bio: user?.bio || "",
     avatar_url: user?.avatar_url || "",
     address: user?.address || "",
-    phone: user?.phone || "",
+    phone: sanitizePhoneInput(user?.phone || ""),
     privacy_public: user?.privacy_public ?? true,
     notifications_enabled: user?.notifications_enabled ?? true,
   });
@@ -55,6 +56,9 @@ const SettingsPage = () => {
   }, []);
 
   const saveProfile = async () => {
+    if (form.phone && !isValidIndianPhone(form.phone)) {
+      return toast.error(PHONE_ERROR_MESSAGE);
+    }
     setSaving(true);
     try {
       const { data } = await api.put("/users/me", form);
@@ -107,13 +111,14 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto">
+        <TabsList className="grid grid-cols-3 md:grid-cols-7 h-auto">
           <TabsTrigger value="profile" data-testid="tab-profile"><User className="w-3 h-3 mr-1" />Profile</TabsTrigger>
           <TabsTrigger value="account" data-testid="tab-account"><Lock className="w-3 h-3 mr-1" />Account</TabsTrigger>
           <TabsTrigger value="prefs" data-testid="tab-prefs"><Globe className="w-3 h-3 mr-1" />Appearance</TabsTrigger>
           <TabsTrigger value="notify" data-testid="tab-notify"><Bell className="w-3 h-3 mr-1" />Notifications</TabsTrigger>
           <TabsTrigger value="email" data-testid="tab-email"><Mail className="w-3 h-3 mr-1" />Email</TabsTrigger>
           <TabsTrigger value="blocked" data-testid="tab-blocked"><Ban className="w-3 h-3 mr-1" />Blocked</TabsTrigger>
+          <TabsTrigger value="legal" data-testid="tab-legal"><ShieldAlert className="w-3 h-3 mr-1" />Legal</TabsTrigger>
         </TabsList>
 
         {/* PROFILE */}
@@ -146,7 +151,21 @@ const SettingsPage = () => {
                 </div>
                 <div>
                   <Label>Phone</Label>
-                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="settings-phone" />
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="px-3 py-2 bg-muted border border-input rounded-md text-sm font-medium text-muted-foreground select-none shrink-0" data-testid="settings-phone-country-code">
+                      +91
+                    </div>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: sanitizePhoneInput(e.target.value) })}
+                      placeholder="9876543210"
+                      className="font-mono"
+                      data-testid="settings-phone"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -352,6 +371,31 @@ const SettingsPage = () => {
                 </div>
               ))
             )}
+          </Card>
+        </TabsContent>
+
+        {/* LEGAL */}
+        <TabsContent value="legal" className="mt-6">
+          <Card className="p-6 space-y-4">
+            <h3 className="font-serif text-xl">Legal & Policies</h3>
+            <p className="text-sm text-muted-foreground">View our terms, rules, and privacy policies.</p>
+            <div className="flex flex-col gap-3">
+              <Button variant="outline" className="justify-start rounded-full" onClick={() => navigate("/legal/terms")}>
+                Terms & Conditions
+              </Button>
+              <Button variant="outline" className="justify-start rounded-full" onClick={() => navigate("/legal/privacy")}>
+                Privacy Policy
+              </Button>
+              <Button variant="outline" className="justify-start rounded-full" onClick={() => navigate("/legal/marketplace-rules")}>
+                Marketplace Rules
+              </Button>
+              <Button variant="outline" className="justify-start rounded-full" onClick={() => navigate("/legal/refunds")}>
+                Refunds & Cancellations
+              </Button>
+              <Button variant="outline" className="justify-start rounded-full" onClick={() => navigate("/legal/faq")}>
+                FAQ & Help
+              </Button>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>

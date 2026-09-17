@@ -1,8 +1,32 @@
 """
 Pydantic schemas for request validation across all API endpoints.
 """
-from pydantic import BaseModel, Field, EmailStr
+import re
 from typing import Optional
+try:
+    from pydantic import BaseModel, Field, EmailStr, field_validator
+    USE_FIELD_VALIDATOR = True
+except ImportError:
+    from pydantic import BaseModel, Field, EmailStr, validator
+    USE_FIELD_VALIDATOR = False
+
+PHONE_ERROR_MSG = "Enter a valid 10-digit mobile number"
+
+
+def validate_and_normalize_phone(v: str) -> str:
+    if not v:
+        raise ValueError(PHONE_ERROR_MSG)
+    s = str(v).strip()
+    if s.startswith("+91"):
+        s = s[3:]
+    elif s.startswith("+"):
+        s = s[1:]
+    digits = re.sub(r"\D", "", s)
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    if not re.match(r"^[6-9][0-9]{9}$", digits):
+        raise ValueError(PHONE_ERROR_MSG)
+    return digits
 
 
 # ── Auth ──────────────────────────────────────────────────────────────
@@ -52,6 +76,13 @@ class ProfileUpdate(BaseModel):
     phone: Optional[str] = None
     privacy_public: Optional[bool] = None
     notifications_enabled: Optional[bool] = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v):
+        if v is None:
+            return v
+        return validate_and_normalize_phone(v)
 
 
 class EmailPrefsIn(BaseModel):
@@ -145,6 +176,11 @@ class OrderIn(BaseModel):
     payment_method: str = "cod"
     delivery_method: str = "pickup"  # pickup, courier, meet_college, meet_library, meet_public
     delivery_notes: Optional[str] = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v):
+        return validate_and_normalize_phone(v)
 
 
 class OrderStatusIn(BaseModel):

@@ -6,7 +6,7 @@ from backend.core.database import get_db
 from firebase_admin import firestore
 from backend.core.security import get_user_by_id
 from backend.api.dependencies import get_current_user, require_role
-from backend.models.schemas import OrderIn, OrderStatusIn
+from backend.models.schemas import OrderIn, OrderStatusIn, validate_and_normalize_phone
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 logger = logging.getLogger("bookbridge.routes.orders")
@@ -142,6 +142,11 @@ def create_chat_order(body: dict, background_tasks: BackgroundTasks, user: dict 
 
 @router.post("")
 def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
+    try:
+        clean_phone = validate_and_normalize_phone(body.phone)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
     db = get_db()
     
     # 1. Fetch Cart
@@ -215,7 +220,7 @@ def place_order(body: OrderIn, background_tasks: BackgroundTasks, user: dict = D
             "items": order_items, 
             "seller_ids": list(seller_ids), 
             "address": body.address, 
-            "phone": body.phone,
+            "phone": clean_phone,
             "payment_method": body.payment_method, 
             "payment_status": "Pending" if is_online_payment else "COD",
             "delivery_method": body.delivery_method,
