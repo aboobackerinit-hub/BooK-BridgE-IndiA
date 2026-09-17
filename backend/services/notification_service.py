@@ -292,6 +292,9 @@ def dispatch_push(notification: dict) -> None:
 
 def notify_new_message(user_id: str, from_name: str, text_preview: str, from_user_id: str = "", message_id: str = None):
     """Notify a user about a new chat message with idempotency deduplication."""
+    if user_id == from_user_id:
+        return None
+        
     doc_id = f"chat_{message_id}" if message_id else None
     action_url = f"/chat/{from_user_id}" if from_user_id else "/chat"
     

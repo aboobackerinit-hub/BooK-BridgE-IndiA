@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import ImageUpload from "@/components/ImageUpload";
 
 const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
 
@@ -102,14 +103,25 @@ const AdminDashboard = () => {
       e.preventDefault();
       try {
         await api.put(`/admin/users/${u.id}`, { name, role });
+        let passReset = false;
+        
         if (newPass.trim()) {
-          await api.post("/admin/reset-password", { user_id: u.id, email: u.email, new_password: newPass.trim() });
-          toast.success(`User details & password updated to '${newPass.trim()}'`);
-        } else {
-          toast.success("User updated");
+          try {
+            await api.post("/admin/reset-password", { user_id: u.id, email: u.email, new_password: newPass.trim() });
+            toast.success(`User details & password updated to '${newPass.trim()}'`);
+            passReset = true;
+          } catch (passErr) {
+            toast.error(`Role updated, but password reset failed: ${passErr.response?.data?.detail || passErr.message}`);
+          }
+        }
+        
+        if (!newPass.trim() || !passReset) {
+          toast.success("User updated successfully");
         }
         load();
-      } catch (err) { toast.error("Failed to update user"); }
+      } catch (err) { 
+        toast.error(`Failed to update user: ${err.response?.data?.detail || err.message}`); 
+      }
     };
 
     const handleDirectReset = async () => {
@@ -268,16 +280,54 @@ const AdminDashboard = () => {
     load();
   };
 
+  const BookSelector = ({ selectedIds = [], onChange }) => {
+    const [search, setSearch] = useState("");
+    const selectedBooks = books.filter(b => selectedIds.includes(b.id));
+    const searchResults = search.trim() ? books.filter(b => b.title.toLowerCase().includes(search.toLowerCase()) && !selectedIds.includes(b.id)).slice(0, 8) : [];
+
+    return (
+      <div className="space-y-2 p-3 border border-border rounded-lg bg-muted/20">
+        <Label>Select Books</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {selectedBooks.map(b => (
+            <Badge key={b.id} variant="secondary" className="flex items-center gap-1 pl-1 pr-2 py-1">
+              {b.image_url && <img src={b.image_url} alt="" className="w-4 h-5 object-cover rounded-sm" />}
+              <span className="truncate max-w-[150px] text-[10px]">{b.title}</span>
+              <button type="button" onClick={() => onChange(selectedIds.filter(id => id !== b.id))} className="text-muted-foreground hover:text-foreground ml-1">×</button>
+            </Badge>
+          ))}
+          {selectedBooks.length === 0 && <span className="text-xs text-muted-foreground">No books selected.</span>}
+        </div>
+        <div className="relative">
+          <Input placeholder="🔍 Search books by title..." value={search} onChange={e => setSearch(e.target.value)} />
+          {searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 z-[100] bg-popover border border-border rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+              {searchResults.map(b => (
+                <div key={b.id} className="p-2 flex items-center gap-3 hover:bg-muted cursor-pointer border-b last:border-0" onClick={() => { onChange([...selectedIds, b.id]); setSearch(""); }}>
+                  <div className="w-8 h-10 bg-muted rounded overflow-hidden shrink-0">
+                    {b.image_url && <img src={b.image_url} alt="" className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium line-clamp-1">{b.title}</span>
+                    <span className="text-[10px] text-muted-foreground line-clamp-1">{b.author}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const LabelDialog = ({ label }) => {
     const isEdit = !!label;
     const [f, setF] = useState(label || { name: "", color: "green", priority: 0, startAt: "", endAt: "", bookIds: [] });
-    const [bookIdsStr, setBookIdsStr] = useState(label?.bookIds?.join(", ") || "");
 
     const submit = async (e) => {
       e.preventDefault();
       const payload = {
         ...f,
-        bookIds: bookIdsStr.split(",").map(id => id.trim()).filter(Boolean),
         startAt: f.startAt || null,
         endAt: f.endAt || null
       };
@@ -305,7 +355,7 @@ const AdminDashboard = () => {
               </Select>
             </div>
             <div><Label>Priority (lower = shown first)</Label><Input type="number" value={f.priority} onChange={e=>setF({...f, priority: parseInt(e.target.value)||0})} /></div>
-            <div><Label>Book IDs (comma separated)</Label><Input placeholder="book-id-1, book-id-2" value={bookIdsStr} onChange={e=>setBookIdsStr(e.target.value)} /></div>
+            <BookSelector selectedIds={f.bookIds || []} onChange={ids => setF({...f, bookIds: ids})} />
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Start Date (optional)</Label><Input type="datetime-local" value={f.startAt?.slice(0,16) || ""} onChange={e=>setF({...f, startAt: e.target.value ? new Date(e.target.value).toISOString() : ""})} /></div>
               <div><Label>End Date (optional)</Label><Input type="datetime-local" value={f.endAt?.slice(0,16) || ""} onChange={e=>setF({...f, endAt: e.target.value ? new Date(e.target.value).toISOString() : ""})} /></div>
@@ -320,13 +370,11 @@ const AdminDashboard = () => {
   const BannerDialog = ({ banner }) => {
     const isEdit = !!banner;
     const [f, setF] = useState(banner || { type: "banner", title: "", subtitle: "", imageUrl: "", buttonText: "", buttonAction: "/store", priority: 0, startAt: "", endAt: "", countdownTarget: "", featuredBookIds: [] });
-    const [bookIdsStr, setBookIdsStr] = useState(banner?.featuredBookIds?.join(", ") || "");
 
     const submit = async (e) => {
       e.preventDefault();
       const payload = {
         ...f,
-        featuredBookIds: bookIdsStr.split(",").map(id => id.trim()).filter(Boolean),
         startAt: f.startAt || null,
         endAt: f.endAt || null,
         countdownTarget: f.type === "countdown" ? (f.countdownTarget || null) : null
@@ -360,7 +408,22 @@ const AdminDashboard = () => {
               <div><Label>Title</Label><Input value={f.title} onChange={e=>setF({...f, title: e.target.value})} required /></div>
               <div><Label>Subtitle (optional)</Label><Input value={f.subtitle} onChange={e=>setF({...f, subtitle: e.target.value})} /></div>
             </div>
-            <div><Label>Image URL (optional)</Label><Input value={f.imageUrl} onChange={e=>setF({...f, imageUrl: e.target.value})} placeholder="https://..." /></div>
+            <div className="space-y-3 p-3 border border-border rounded-lg bg-muted/20">
+              <Label>Image (optional)</Label>
+              <ImageUpload
+                value={f.imageUrl}
+                onChange={(url) => setF({ ...f, imageUrl: url })}
+                label="Upload Banner Image"
+                sublabel="Select a photo to upload directly"
+                aspect="video"
+              />
+              <div className="flex items-center gap-3">
+                <div className="h-px bg-border flex-1"></div>
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">OR PASTE URL</span>
+                <div className="h-px bg-border flex-1"></div>
+              </div>
+              <Input value={f.imageUrl} onChange={e=>setF({...f, imageUrl: e.target.value})} placeholder="https://..." />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Button Text</Label><Input value={f.buttonText} onChange={e=>setF({...f, buttonText: e.target.value})} placeholder="e.g. Shop Now" /></div>
               <div><Label>Button Action (Link)</Label><Input value={f.buttonAction} onChange={e=>setF({...f, buttonAction: e.target.value})} placeholder="/store" /></div>
@@ -370,7 +433,7 @@ const AdminDashboard = () => {
               <div><Label>Countdown Target Date/Time</Label><Input type="datetime-local" value={f.countdownTarget?.slice(0,16) || ""} onChange={e=>setF({...f, countdownTarget: e.target.value ? new Date(e.target.value).toISOString() : ""})} required /></div>
             )}
             {f.type === "campaign" && (
-              <div><Label>Featured Book IDs (comma separated)</Label><Input placeholder="book-id-1, book-id-2" value={bookIdsStr} onChange={e=>setBookIdsStr(e.target.value)} /></div>
+              <BookSelector selectedIds={f.featuredBookIds || []} onChange={ids => setF({...f, featuredBookIds: ids})} />
             )}
             
             <div className="grid grid-cols-2 gap-3">

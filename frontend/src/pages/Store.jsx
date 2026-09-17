@@ -62,33 +62,39 @@ const PromotionalBanner = ({ banner }) => {
     return () => clearInterval(interval);
   }, [banner]);
 
-  return (
-    <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-border shadow-sm bg-primary/5 mb-8">
-      {banner.imageUrl && (
-        <OptimizedImage src={banner.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-center opacity-30" aria-hidden="true" />
+  const content = (
+    <div className="flex items-center gap-3 px-6 text-sm md:text-base tracking-wide shrink-0 font-medium">
+      <span className="font-bold whitespace-nowrap text-base md:text-lg">🎉 {banner.title}</span>
+      {banner.subtitle && <span className="opacity-95 whitespace-nowrap">• {banner.subtitle}</span>}
+      {timeLeft && (
+        <span className="font-mono bg-background/25 px-2.5 py-1 rounded-md text-xs md:text-sm whitespace-nowrap font-semibold ml-2 shadow-sm">
+          {timeLeft}
+        </span>
       )}
-      <div className="relative p-6 md:p-12 flex flex-col items-center text-center">
-        {banner.type === "countdown" && <Badge className="mb-4 bg-accent text-accent-foreground">COUNTDOWN</Badge>}
-        {banner.type === "special_day" && <Badge className="mb-4 bg-primary text-primary-foreground">SPECIAL DAY</Badge>}
-        {banner.type === "campaign" && <Badge className="mb-4 bg-emerald-500 text-white">CAMPAIGN</Badge>}
-        
-        <h2 className="font-serif text-3xl md:text-5xl leading-tight mb-2 text-primary drop-shadow-sm">{banner.title}</h2>
-        {banner.subtitle && <p className="text-foreground/90 md:text-lg max-w-2xl mb-6">{banner.subtitle}</p>}
-        
-        {banner.type === "countdown" && banner.countdownTarget && (
-          <div className="font-mono text-2xl md:text-4xl font-bold text-accent-foreground mb-6">
-            {timeLeft}
-          </div>
-        )}
-        
-        {banner.buttonText && (
-          <Button asChild size="lg" className="rounded-full shadow-sm z-10">
-            <Link to={banner.buttonAction || "/store"}>{banner.buttonText}</Link>
-          </Button>
-        )}
+      {banner.buttonText && <span className="underline underline-offset-4 whitespace-nowrap ml-3 opacity-95 font-semibold hover:opacity-100 transition-opacity">{banner.buttonText}</span>}
+    </div>
+  );
+
+  const wrapper = (
+    <div className="relative overflow-hidden bg-primary text-primary-foreground py-6 md:py-8 shadow-md pause-on-hover flex mb-6 md:rounded-xl items-center">
+      {banner.imageUrl && (
+        <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
+          <OptimizedImage src={banner.imageUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+      <div className="flex z-10 w-max animate-marquee items-center">
+        {content}
+        {content}
+        {content}
+        {content}
       </div>
     </div>
   );
+
+  if (banner.buttonAction) {
+    return <Link to={banner.buttonAction} className="block">{wrapper}</Link>;
+  }
+  return wrapper;
 };
 
 const BookCard = ({ book, labels = [] }) => (
@@ -230,6 +236,15 @@ const StorePage = () => {
         <Plus className="w-4 h-4" />
         <span className="font-medium text-sm hidden md:inline">Sell a Book</span>
       </button>
+      {/* Promotional Banners (Moved above Hero) */}
+      {!q.trim() && banners.length > 0 && (
+        <section className="-mx-4 md:mx-0 -mt-4 md:mt-0">
+          {banners.slice(0, 1).map(b => (
+            <PromotionalBanner key={b.id} banner={b} />
+          ))}
+        </section>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-border shadow-sm">
         <OptimizedImage src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover object-center" aria-hidden="true" />
@@ -258,14 +273,7 @@ const StorePage = () => {
         </div>
       </section>
 
-      {/* Promotional Banners */}
-      {!q.trim() && banners.length > 0 && (
-        <section>
-          {banners.slice(0, 1).map(b => (
-            <PromotionalBanner key={b.id} banner={b} />
-          ))}
-        </section>
-      )}
+
 
       {/* Featured strip */}
       {!q.trim() && featured.length > 0 && (

@@ -41,17 +41,23 @@ const TopNav = () => {
   }, []);
 
   useEffect(() => {
-    if (user?.notifications_enabled === false) { setNotif({ unread_messages: 0, recent: [], pending_orders: 0 }); return; }
+    if (user?.notifications_enabled === false) { setNotif({ unread_messages: 0, unread_general: 0, notifications: [], pending_orders: 0 }); return; }
     const loadNotif = async () => {
       try {
         const { data } = await api.get("/notifications");
         setNotif(data);
-        const total = (data.unread_messages || 0) + (data.pending_orders || 0);
+        const total = (data.unread_general || 0) + (data.pending_orders || 0);
         if (total > lastSeenRef.current && lastSeenRef.current > 0) {
-          const latest = data.recent?.[0];
-          if (latest) {
-            const { toast } = require("sonner");
-            toast(`💬 ${latest.from_user_name}`, { description: latest.text });
+          const latest = data.notifications?.[0];
+          if (latest && !latest.read) {
+            const actionUrl = latest.action_url || "/chat";
+            if (window.location.pathname !== actionUrl) {
+              const { toast } = require("sonner");
+              toast(latest.title, { 
+                description: latest.body,
+                action: { label: "View", onClick: () => navigate(actionUrl) }
+              });
+            }
           }
         }
         lastSeenRef.current = total;
@@ -125,9 +131,9 @@ const TopNav = () => {
                   aria-label="Notifications"
                 >
                   <Bell className="w-4 h-4" />
-                  {((notif.unread_general || notif.unread_messages || 0) + (notif.pending_orders || 0)) > 0 && (
+                  {((notif.unread_general || 0) + (notif.pending_orders || 0)) > 0 && (
                     <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
-                      {(notif.unread_general || notif.unread_messages || 0) + (notif.pending_orders || 0)}
+                      {(notif.unread_general || 0) + (notif.pending_orders || 0)}
                     </span>
                   )}
                 </button>
