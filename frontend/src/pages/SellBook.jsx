@@ -19,6 +19,7 @@ const empty = {
   title: "", author: "", description: "", price: 0, stock: 1,
   category: "Fiction", condition: "Used", image_url: "",
   isbn: "", edition: "", language: "English",
+  originalPrice: 0, offerPrice: 0
 };
 
 const SellBookPage = () => {
@@ -33,12 +34,25 @@ const SellBookPage = () => {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
-    if (!f.title.trim() || !f.author.trim() || !f.price) {
+    let finalPayload = { ...f };
+    if (finalPayload.condition === "New") {
+      const orig = parseFloat(finalPayload.originalPrice) || 0;
+      const offer = parseFloat(finalPayload.offerPrice) || 0;
+      if (orig > 0) {
+        if (offer > orig) {
+          return toast.error("Offer price cannot be higher than original price.");
+        }
+        finalPayload.price = offer > 0 ? offer : orig;
+      } else {
+        finalPayload.price = 0; // Will be caught by validation
+      }
+    }
+    if (!finalPayload.title.trim() || !finalPayload.author.trim() || !finalPayload.price) {
       return toast.error("Title, author and price are required");
     }
     setSaving(true);
     try {
-      const { data } = await api.post("/books", f);
+      const { data } = await api.post("/books", finalPayload);
       toast.success("Book listed for sale!");
       navigate(`/book/${data.id}`);
     } catch (e) {
@@ -76,9 +90,20 @@ const SellBookPage = () => {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{f.category} · {f.condition}</div>
               <div className="font-serif text-lg font-semibold line-clamp-2">{f.title || "Book title"}</div>
               <div className="text-xs text-muted-foreground mt-1">by {f.author || "Author"}</div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <IndianRupee className="w-4 h-4 text-primary" />
-                <span className="font-mono font-bold text-primary text-xl">{f.price || "0"}</span>
+              <div className="mt-3 flex items-baseline gap-2">
+                {f.condition === "New" && f.originalPrice > (f.offerPrice || f.originalPrice) && (f.offerPrice || 0) > 0 ? (
+                  <>
+                    <span className="font-mono font-bold text-primary text-xl">₹{f.offerPrice}</span>
+                    <strike className="text-muted-foreground text-sm">₹{f.originalPrice}</strike>
+                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      {Math.floor(((f.originalPrice - f.offerPrice) / f.originalPrice) * 100)}% off
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-mono font-bold text-primary text-xl">
+                    ₹{f.condition === "New" ? (f.offerPrice || f.originalPrice || "0") : (f.price || "0")}
+                  </span>
+                )}
               </div>
             </div>
           </Card>
@@ -157,16 +182,33 @@ const SellBookPage = () => {
 
           <Card className="p-6 space-y-4">
             <h3 className="font-serif text-xl">Price & Stock</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Selling price (₹) *</Label>
-                <Input type="number" inputMode="decimal" value={f.price} onChange={(e) => set("price", parseFloat(e.target.value) || 0)} data-testid="sell-price-input" />
+            {f.condition === "New" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Original Price (₹)</Label>
+                  <Input type="number" inputMode="decimal" value={f.originalPrice || ""} onChange={(e) => set("originalPrice", parseFloat(e.target.value) || 0)} data-testid="sell-original-price-input" />
+                </div>
+                <div>
+                  <Label>Offer Price (₹)</Label>
+                  <Input type="number" inputMode="decimal" value={f.offerPrice || ""} onChange={(e) => set("offerPrice", parseFloat(e.target.value) || 0)} data-testid="sell-offer-price-input" />
+                </div>
+                <div>
+                  <Label>Available copies</Label>
+                  <Input type="number" inputMode="numeric" value={f.stock} onChange={(e) => set("stock", parseInt(e.target.value) || 0)} data-testid="sell-stock-input" />
+                </div>
               </div>
-              <div>
-                <Label>Available copies</Label>
-                <Input type="number" inputMode="numeric" value={f.stock} onChange={(e) => set("stock", parseInt(e.target.value) || 0)} data-testid="sell-stock-input" />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Price (₹) *</Label>
+                  <Input type="number" inputMode="decimal" value={f.price || ""} onChange={(e) => set("price", parseFloat(e.target.value) || 0)} data-testid="sell-price-input" />
+                </div>
+                <div>
+                  <Label>Available copies</Label>
+                  <Input type="number" inputMode="numeric" value={f.stock} onChange={(e) => set("stock", parseInt(e.target.value) || 0)} data-testid="sell-stock-input" />
+                </div>
               </div>
-            </div>
+            )}
           </Card>
 
           <div className="flex justify-end gap-3">

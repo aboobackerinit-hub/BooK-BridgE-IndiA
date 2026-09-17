@@ -91,12 +91,24 @@ const BookDetail = () => {
   const isOwnerOrAdmin = user && book && (user.id === book.owner_id || user.id === book.owner?.id || user.role === "admin");
 
   const saveEdit = async () => {
-    if (!editForm.title?.trim() || !editForm.author?.trim() || editForm.price === undefined) {
+    let finalPayload = { ...editForm };
+    if (finalPayload.condition === "New") {
+      const orig = parseFloat(finalPayload.originalPrice) || 0;
+      const offer = parseFloat(finalPayload.offerPrice) || 0;
+      if (orig > 0 && offer > orig) {
+        return toast.error("Offer price cannot be higher than original price.");
+      }
+      if (orig > 0) {
+        finalPayload.price = offer > 0 ? offer : orig;
+      }
+    }
+    
+    if (!finalPayload.title?.trim() || !finalPayload.author?.trim() || finalPayload.price === undefined) {
       return toast.error("Title, author, and price are required");
     }
     setSaving(true);
     try {
-      const { data } = await api.put(`/books/${id}`, editForm);
+      const { data } = await api.put(`/books/${id}`, finalPayload);
       toast.success("Listing updated successfully!");
       setBook(data);
       setEditForm(data);
@@ -186,7 +198,17 @@ const BookDetail = () => {
           </div>
 
           <div className="flex items-baseline gap-3">
-            <span className="font-mono text-3xl font-bold text-primary">₹{book.price}</span>
+            {book.condition === "New" && book.originalPrice > (book.offerPrice || book.originalPrice) && (book.offerPrice || 0) > 0 ? (
+              <>
+                <span className="font-mono text-3xl font-bold text-primary">₹{book.offerPrice}</span>
+                <strike className="text-muted-foreground text-lg">₹{book.originalPrice}</strike>
+                <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                  {Math.floor(((book.originalPrice - book.offerPrice) / book.originalPrice) * 100)}% off
+                </span>
+              </>
+            ) : (
+              <span className="font-mono text-3xl font-bold text-primary">₹{book.price}</span>
+            )}
             <span className={`text-sm font-medium ${book.stock > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
               {book.stock > 0 ? `${book.stock} in stock` : "Out of Stock"}
             </span>
@@ -302,12 +324,25 @@ const BookDetail = () => {
                     <Label>Author *</Label>
                     <Input value={editForm.author || ""} onChange={(e) => setEditForm({ ...editForm, author: e.target.value })} data-testid="edit-author-input" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Price (₹) *</Label>
-                      <Input type="number" min={0} value={editForm.price ?? 0} onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} data-testid="edit-price-input" />
-                    </div>
-                    <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {editForm.condition === "New" ? (
+                      <>
+                        <div>
+                          <Label>Original Price (₹)</Label>
+                          <Input type="number" min={0} value={editForm.originalPrice || ""} onChange={(e) => setEditForm({ ...editForm, originalPrice: parseFloat(e.target.value) || 0 })} data-testid="edit-original-price-input" />
+                        </div>
+                        <div>
+                          <Label>Offer Price (₹)</Label>
+                          <Input type="number" min={0} value={editForm.offerPrice || ""} onChange={(e) => setEditForm({ ...editForm, offerPrice: parseFloat(e.target.value) || 0 })} data-testid="edit-offer-price-input" />
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <Label>Price (₹) *</Label>
+                        <Input type="number" min={0} value={editForm.price ?? 0} onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} data-testid="edit-price-input" />
+                      </div>
+                    )}
+                    <div className={editForm.condition === "New" ? "sm:col-span-2" : ""}>
                       <Label>Stock Quantity *</Label>
                       <div className="flex items-center gap-2">
                         <Button type="button" variant="outline" size="sm" onClick={() => setEditForm({ ...editForm, stock: Math.max(0, (editForm.stock || 0) - 1) })}>

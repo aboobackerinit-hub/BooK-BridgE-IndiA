@@ -125,6 +125,8 @@ class BookIn(BaseModel):
     location_district: Optional[str] = None
     location_state: Optional[str] = None
     location_college_id: Optional[str] = None
+    originalPrice: Optional[float] = None
+    offerPrice: Optional[float] = None
 
 
 class BookUpdateIn(BaseModel):
@@ -144,6 +146,8 @@ class BookUpdateIn(BaseModel):
     delivery_options: Optional[list[str]] = None
     subject: Optional[str] = None
     publisher_name: Optional[str] = None
+    originalPrice: Optional[float] = None
+    offerPrice: Optional[float] = None
 
 
 # ── Posts / Social ────────────────────────────────────────────────────

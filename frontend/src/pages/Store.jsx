@@ -37,11 +37,74 @@ const handleShare = async (e, book) => {
   }
 };
 
-const BookCard = ({ book }) => (
+const PromotionalBanner = ({ banner }) => {
+  const [timeLeft, setTimeLeft] = useState("");
+  
+  useEffect(() => {
+    if (banner.type !== "countdown" || !banner.countdownTarget) return;
+    const target = new Date(banner.countdownTarget).getTime();
+    
+    const update = () => {
+      const now = new Date().getTime();
+      const diff = target - now;
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        return;
+      }
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [banner]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-border shadow-sm bg-primary/5 mb-8">
+      {banner.imageUrl && (
+        <OptimizedImage src={banner.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-center opacity-30" aria-hidden="true" />
+      )}
+      <div className="relative p-6 md:p-12 flex flex-col items-center text-center">
+        {banner.type === "countdown" && <Badge className="mb-4 bg-accent text-accent-foreground">COUNTDOWN</Badge>}
+        {banner.type === "special_day" && <Badge className="mb-4 bg-primary text-primary-foreground">SPECIAL DAY</Badge>}
+        {banner.type === "campaign" && <Badge className="mb-4 bg-emerald-500 text-white">CAMPAIGN</Badge>}
+        
+        <h2 className="font-serif text-3xl md:text-5xl leading-tight mb-2 text-primary drop-shadow-sm">{banner.title}</h2>
+        {banner.subtitle && <p className="text-foreground/90 md:text-lg max-w-2xl mb-6">{banner.subtitle}</p>}
+        
+        {banner.type === "countdown" && banner.countdownTarget && (
+          <div className="font-mono text-2xl md:text-4xl font-bold text-accent-foreground mb-6">
+            {timeLeft}
+          </div>
+        )}
+        
+        {banner.buttonText && (
+          <Button asChild size="lg" className="rounded-full shadow-sm z-10">
+            <Link to={banner.buttonAction || "/store"}>{banner.buttonText}</Link>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const BookCard = ({ book, labels = [] }) => (
   <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
     className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block relative">
     <div className="aspect-[3/4] bg-muted overflow-hidden relative">
       <OptimizedImage src={book.image_url} alt={book.title} fallbackType="book" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      
+      {labels.length > 0 && (
+        <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[80%] z-20 pointer-events-none">
+          {labels.slice(0, 3).map((l, i) => (
+            <Badge key={i} className={`bg-${l.color}-500 text-white shadow-sm text-[10px] px-2 py-0.5 uppercase border-0 w-max`}>{l.name}</Badge>
+          ))}
+        </div>
+      )}
+
       <button
         onClick={(e) => handleShare(e, book)}
         className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm text-foreground hover:bg-background flex items-center justify-center shadow-sm transition-all opacity-90 group-hover:opacity-100 z-10"
@@ -64,7 +127,17 @@ const BookCard = ({ book }) => (
       </div>
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{book.author}</p>
       <div className="flex items-center justify-between">
-        <span className="font-mono font-semibold text-primary">₹{book.price}</span>
+        {book.condition === "New" && book.originalPrice > (book.offerPrice || book.originalPrice) && (book.offerPrice || 0) > 0 ? (
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono font-semibold text-primary">₹{book.offerPrice}</span>
+            <strike className="text-muted-foreground text-[10px]">₹{book.originalPrice}</strike>
+            <span className="text-green-600 dark:text-green-400 text-[10px] font-semibold">
+              {Math.floor(((book.originalPrice - book.offerPrice) / book.originalPrice) * 100)}% off
+            </span>
+          </div>
+        ) : (
+          <span className="font-mono font-semibold text-primary">₹{book.price}</span>
+        )}
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{book.category}</span>
       </div>
     </div>
@@ -77,6 +150,8 @@ const StorePage = () => {
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [banners, setBanners] = useState([]);
+  const [bookLabels, setBookLabels] = useState({});
   const navigate = useNavigate();
 
   const load = async () => {
@@ -114,6 +189,18 @@ const StorePage = () => {
     api.get("/categories").then((r) => {
       setCats(r.data);
       setCache("store_categories", r.data);
+    }).catch(() => {});
+
+    api.get("/promotions/banners").then(r => setBanners(r.data)).catch(() => {});
+    api.get("/promotions/labels").then(r => {
+      const labelMap = {};
+      r.data.forEach(l => {
+        l.bookIds?.forEach(id => {
+          if (!labelMap[id]) labelMap[id] = [];
+          labelMap[id].push(l);
+        });
+      });
+      setBookLabels(labelMap);
     }).catch(() => {});
   }, []);
 
@@ -171,6 +258,15 @@ const StorePage = () => {
         </div>
       </section>
 
+      {/* Promotional Banners */}
+      {!q.trim() && banners.length > 0 && (
+        <section>
+          {banners.slice(0, 1).map(b => (
+            <PromotionalBanner key={b.id} banner={b} />
+          ))}
+        </section>
+      )}
+
       {/* Featured strip */}
       {!q.trim() && featured.length > 0 && (
         <section>
@@ -181,7 +277,7 @@ const StorePage = () => {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-            {featured.slice(0, 5).map((b) => <BookCard key={b.id} book={b} />)}
+            {featured.slice(0, 5).map((b) => <BookCard key={b.id} book={b} labels={bookLabels[b.id]} />)}
           </div>
         </section>
       )}
@@ -212,7 +308,7 @@ const StorePage = () => {
           <Card className="p-12 text-center text-muted-foreground">No books found.</Card>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6" data-testid="books-grid">
-            {books.map((b) => <BookCard key={b.id} book={b} />)}
+            {books.map((b) => <BookCard key={b.id} book={b} labels={bookLabels[b.id]} />)}
           </div>
         )}
       </section>

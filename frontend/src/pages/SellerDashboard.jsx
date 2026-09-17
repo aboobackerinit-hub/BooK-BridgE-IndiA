@@ -23,7 +23,8 @@ const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancel
 
 const emptyBook = {
   title: "", author: "", description: "", price: 0, stock: 1,
-  category: "Fiction", condition: "New", image_url: "", isbn: "", edition: "", language: "English"
+  category: "Fiction", condition: "New", image_url: "", isbn: "", edition: "", language: "English",
+  originalPrice: 0, offerPrice: 0
 };
 
 const BookForm = ({ initial, onSave, categories }) => {
@@ -43,7 +44,14 @@ const BookForm = ({ initial, onSave, categories }) => {
         <div className="md:col-span-2 grid grid-cols-2 gap-3">
           <div className="col-span-2"><Label>Title</Label><Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} data-testid="book-title-input" /></div>
           <div className="col-span-2"><Label>Author</Label><Input value={f.author} onChange={(e) => setF({ ...f, author: e.target.value })} data-testid="book-author-input" /></div>
-          <div><Label>Price (₹)</Label><Input type="number" value={f.price} onChange={(e) => setF({ ...f, price: parseFloat(e.target.value) || 0 })} data-testid="book-price-input" /></div>
+          {f.condition === "New" ? (
+            <>
+              <div><Label>Orig Price (₹)</Label><Input type="number" value={f.originalPrice || ""} onChange={(e) => setF({ ...f, originalPrice: parseFloat(e.target.value) || 0 })} data-testid="book-original-price-input" /></div>
+              <div><Label>Offer Price (₹)</Label><Input type="number" value={f.offerPrice || ""} onChange={(e) => setF({ ...f, offerPrice: parseFloat(e.target.value) || 0 })} data-testid="book-offer-price-input" /></div>
+            </>
+          ) : (
+            <div><Label>Price (₹)</Label><Input type="number" value={f.price || ""} onChange={(e) => setF({ ...f, price: parseFloat(e.target.value) || 0 })} data-testid="book-price-input" /></div>
+          )}
           <div><Label>Stock</Label><Input type="number" value={f.stock} onChange={(e) => setF({ ...f, stock: parseInt(e.target.value) || 0 })} data-testid="book-stock-input" /></div>
           <div>
             <Label>Category</Label>
@@ -101,11 +109,23 @@ const SellerDashboard = ({ role }) => {
 
   const saveBook = async (data) => {
     try {
+      let finalData = { ...data };
+      if (finalData.condition === "New") {
+        const orig = parseFloat(finalData.originalPrice) || 0;
+        const offer = parseFloat(finalData.offerPrice) || 0;
+        if (orig > 0 && offer > orig) {
+          return toast.error("Offer price cannot be higher than original price.");
+        }
+        if (orig > 0) {
+          finalData.price = offer > 0 ? offer : orig;
+        }
+      }
+      
       if (editing?.id) {
-        await api.put(`/books/${editing.id}`, data);
+        await api.put(`/books/${editing.id}`, finalData);
         toast.success("Book updated");
       } else {
-        await api.post("/books", data);
+        await api.post("/books", finalData);
         toast.success("Book added");
       }
       setDialogOpen(false); setEditing(null);
@@ -202,7 +222,19 @@ const SellerDashboard = ({ role }) => {
                     {b.stock === 0 && <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 h-4">Out of Stock</Badge>}
                     {b.stock > 0 && b.stock <= 5 && <Badge variant="outline" className="text-orange-500 border-orange-500 text-[10px] py-0 h-4">Low Stock</Badge>}
                   </div>
-                  <div className="font-mono text-primary font-semibold w-20 text-right">₹{b.price}</div>
+                  <div className="font-mono text-primary font-semibold w-24 text-right">
+                    {b.condition === "New" && b.originalPrice > (b.offerPrice || b.originalPrice) && (b.offerPrice || 0) > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span>₹{b.offerPrice}</span>
+                        <strike className="text-muted-foreground text-[10px]">₹{b.originalPrice}</strike>
+                        <span className="text-green-600 dark:text-green-400 text-[10px]">
+                          {Math.floor(((b.originalPrice - b.offerPrice) / b.originalPrice) * 100)}% off
+                        </span>
+                      </div>
+                    ) : (
+                      <span>₹{b.price}</span>
+                    )}
+                  </div>
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setDialogOpen(true); }} data-testid={`edit-book-${b.id}`}><Edit className="w-4 h-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteBook(b.id)} className="text-destructive" data-testid={`delete-book-${b.id}`}><Trash2 className="w-4 h-4" /></Button>
                 </Card>

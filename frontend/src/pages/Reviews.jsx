@@ -25,20 +25,20 @@ const fmtTime = (iso) => {
 const TruncatedText = ({ text, maxLength = 250 }) => {
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
-  if (text.length <= maxLength) return <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap">{text}</p>;
-  
+  if (text.length <= maxLength) {
+    return <p className="text-[15px] text-foreground/90 leading-snug whitespace-pre-wrap break-words">{text}</p>;
+  }
   return (
-    <div>
-      <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap">
-        {expanded ? text : `${text.slice(0, maxLength)}...`}
-      </p>
-      <button 
-        onClick={() => setExpanded(!expanded)} 
-        className="text-primary font-medium hover:underline mt-1 text-sm"
+    <p className="text-[15px] text-foreground/90 leading-snug whitespace-pre-wrap break-words">
+      {expanded ? text : `${text.slice(0, maxLength)}...`}
+      {" "}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-primary font-semibold hover:underline text-[15px] inline"
       >
         {expanded ? "See Less" : "See More"}
       </button>
-    </div>
+    </p>
   );
 };
 
@@ -144,156 +144,194 @@ const PostCard = ({ post, currentUser, onUpdate, onDelete }) => {
   };
 
   return (
-    <Card className={`p-4 sm:p-6 space-y-4 shadow-sm border-border/50 rounded-2xl ${post.pinned ? "border-primary/50 bg-primary/5" : ""}`} data-testid={`post-${post.id}`}>
-      {post.pinned && (
-        <div className="flex items-center text-xs font-semibold text-primary mb-2">
-          <Pin className="w-3 h-3 mr-1" /> Pinned Post
-        </div>
-      )}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <Link to={`/profile/${post.author?.id}`}>
-            <Avatar className="w-12 h-12 border cursor-pointer hover:opacity-80 transition-opacity">
-              <AvatarImage src={post.author?.avatar_url} />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold">{post.author?.name?.[0]}</AvatarFallback>
-            </Avatar>
-          </Link>
-          <div>
-            <div className="flex items-center gap-1">
-              <Link to={`/profile/${post.author?.id}`} className="font-serif font-bold text-base hover:underline transition-all">
-                {post.author?.name}
-              </Link>
-              {["admin", "publisher", "store_owner"].includes(post.author?.role) && (
-                <CheckCircle className="w-4 h-4 text-blue-500" />
+    <Card
+      className={`overflow-hidden shadow-sm border-border/50 rounded-2xl ${
+        post.pinned ? "border-primary/50 bg-primary/5" : ""
+      }`}
+      data-testid={`post-${post.id}`}
+    >
+      <div className="px-3 pt-3 pb-0 sm:px-4 sm:pt-4">
+
+        {/* Pinned badge */}
+        {post.pinned && (
+          <div className="flex items-center text-xs font-semibold text-primary mb-2">
+            <Pin className="w-3 h-3 mr-1" /> Pinned Post
+          </div>
+        )}
+
+        {/* HEADER */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Link to={`/profile/${post.author?.id}`} className="shrink-0">
+              <Avatar className="w-9 h-9 border cursor-pointer hover:opacity-80 transition-opacity">
+                <AvatarImage src={post.author?.avatar_url} />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                  {post.author?.name?.[0]}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 flex-wrap">
+                <Link
+                  to={`/profile/${post.author?.id}`}
+                  className="font-semibold text-[14px] leading-tight hover:underline truncate max-w-[160px] sm:max-w-none"
+                >
+                  {post.author?.name}
+                </Link>
+                {["admin", "publisher", "store_owner"].includes(post.author?.role) && (
+                  <CheckCircle className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                )}
+                {!isOwner && (
+                  <button className="text-primary text-[13px] font-semibold hover:underline leading-tight shrink-0">
+                    · Follow
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-[12px] text-muted-foreground leading-tight mt-0.5">
+                <span className="font-medium bg-muted px-1 py-0.5 rounded text-[10px] uppercase tracking-wider">
+                  {post.author?.role === 'user' ? 'Member' : post.author?.role}
+                </span>
+                <span>·</span>
+                <span>{fmtTime(post.created_at)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ••• Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full h-7 w-7 text-muted-foreground shrink-0 -mt-0.5">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {isOwner ? (
+                <>
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    <Edit2 className="w-4 h-4 mr-2" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem onClick={handleReport}>
+                  <Flag className="w-4 h-4 mr-2" /> Report
+                </DropdownMenuItem>
               )}
-            </div>
-            <div className="text-[13px] text-muted-foreground flex gap-1.5 items-center">
-              <span className="font-medium bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">
-                {post.author?.role === 'user' ? 'Member' : post.author?.role}
-              </span>
-              <span>·</span>
-              <span>{fmtTime(post.created_at)}</span>
-            </div>
-          </div>
+              {canPin && (
+                <DropdownMenuItem onClick={handlePin}>
+                  <Pin className="w-4 h-4 mr-2" /> {post.pinned ? "Unpin" : "Pin"}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-muted-foreground">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            {isOwner ? (
-              <>
-                <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                  <Edit2 className="w-4 h-4 mr-2" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem onClick={handleReport}>
-                <Flag className="w-4 h-4 mr-2" /> Report
-              </DropdownMenuItem>
-            )}
-            {canPin && (
-              <DropdownMenuItem onClick={handlePin}>
-                <Pin className="w-4 h-4 mr-2" /> {post.pinned ? "Unpin" : "Pin"}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        {/* POST TEXT */}
+        <div className="mt-2 mb-2">
+          {isEditing ? (
+            <div className="space-y-2">
+              <Textarea
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                className="min-h-[80px] resize-none"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                <Button size="sm" onClick={handleEdit}>Save</Button>
+              </div>
+            </div>
+          ) : (
+            <TruncatedText text={post.text} />
+          )}
+        </div>
       </div>
 
-      {isEditing ? (
-        <div className="space-y-2">
-          <Textarea 
-            value={editText} 
-            onChange={e => setEditText(e.target.value)} 
-            className="min-h-[100px] resize-none"
-          />
-          <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleEdit}>Save</Button>
-          </div>
-        </div>
-      ) : (
-        <TruncatedText text={post.text} />
-      )}
-
+      {/* MEDIA */}
       {post.image_url && (
-        <div className="rounded-2xl overflow-hidden border border-border/50 bg-muted/10">
-          <OptimizedImage src={post.image_url} alt="Post image" className="w-full max-h-[600px] object-cover" />
+        <div className="mt-1 bg-muted/10">
+          <OptimizedImage
+            src={post.image_url}
+            alt="Post image"
+            className="w-full max-h-[500px] object-cover"
+          />
         </div>
       )}
 
-      {post.book_id && <BookReferenceCard bookId={post.book_id} />}
+      {/* BOOK REFERENCE */}
+      {post.book_id && (
+        <div className="px-3 sm:px-4">
+          <BookReferenceCard bookId={post.book_id} />
+        </div>
+      )}
 
-      <div className="flex items-center justify-between pt-3 border-t border-border/50 text-muted-foreground px-1">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleLike} 
-          className={`rounded-full hover:text-red-500 hover:bg-red-50 transition-colors ${liked ? "text-red-500" : ""}`}
+      {/* ACTION BAR */}
+      <div className="flex items-center border-t border-border/50 text-muted-foreground mt-1">
+        <button
+          onClick={toggleLike}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[13px] font-medium transition-colors hover:bg-red-50 hover:text-red-500 ${
+            liked ? "text-red-500" : ""
+          }`}
         >
-          <Heart className={`w-5 h-5 mr-1.5 ${liked ? "fill-red-500" : ""}`} /> 
-          <span className="font-medium">{post.likes?.length || 0}</span>
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setShowComments((s) => !s)} 
-          className="rounded-full hover:text-blue-500 hover:bg-blue-50 transition-colors"
+          <Heart className={`w-4 h-4 ${liked ? "fill-red-500" : ""}`} />
+          <span>{post.likes?.length > 0 ? post.likes.length : "Like"}</span>
+        </button>
+
+        <button
+          onClick={() => setShowComments(s => !s)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[13px] font-medium transition-colors hover:bg-blue-50 hover:text-blue-500"
         >
-          <MessageCircle className="w-5 h-5 mr-1.5" /> 
-          <span className="font-medium">{post.comments?.length || 0}</span>
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }} 
-          className="rounded-full hover:text-green-500 hover:bg-green-50 transition-colors"
+          <MessageCircle className="w-4 h-4" />
+          <span>{post.comments?.length > 0 ? post.comments.length : "Comment"}</span>
+        </button>
+
+        <button
+          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[13px] font-medium transition-colors hover:bg-green-50 hover:text-green-500"
         >
-          <Share2 className="w-5 h-5 mr-1.5" />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setIsSaved(!isSaved)} 
-          className={`rounded-full hover:text-yellow-600 hover:bg-yellow-50 transition-colors ${isSaved ? "text-yellow-600" : ""}`}
+          <Share2 className="w-4 h-4" />
+          <span>Share</span>
+        </button>
+
+        <button
+          onClick={() => setIsSaved(!isSaved)}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[13px] font-medium transition-colors hover:bg-yellow-50 hover:text-yellow-600 ${
+            isSaved ? "text-yellow-600" : ""
+          }`}
         >
-          <Bookmark className={`w-5 h-5 mr-1.5 ${isSaved ? "fill-yellow-600" : ""}`} />
-        </Button>
+          <Bookmark className={`w-4 h-4 ${isSaved ? "fill-yellow-600" : ""}`} />
+          <span>Save</span>
+        </button>
       </div>
 
+      {/* COMMENTS SECTION */}
       {showComments && (
-        <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+        <div className="px-3 sm:px-4 pb-3 space-y-3 pt-3 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
           {post.comments?.map((c) => (
-            <div key={c.id} className="flex gap-3">
-              <Avatar className="w-8 h-8 mt-0.5 border">
+            <div key={c.id} className="flex gap-2">
+              <Avatar className="w-7 h-7 mt-0.5 border shrink-0">
                 <AvatarFallback className="text-xs bg-muted font-medium">{c.user_name?.[0]}</AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <div className="bg-muted/50 rounded-2xl px-4 py-2.5 inline-block max-w-[90%]">
-                  <div className="text-sm font-semibold">{c.user_name}</div>
-                  <div className="text-[15px] leading-snug break-words">{c.text}</div>
+              <div className="flex-1 min-w-0">
+                <div className="bg-muted/50 rounded-2xl px-3 py-2 inline-block max-w-full">
+                  <div className="text-[13px] font-semibold">{c.user_name}</div>
+                  <div className="text-[14px] leading-snug break-words">{c.text}</div>
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-1 ml-2">
+                <div className="text-[11px] text-muted-foreground mt-0.5 ml-1">
                   {fmtTime(c.created_at)}
                 </div>
               </div>
             </div>
           ))}
-          <div className="flex gap-3 pt-2">
-            <Avatar className="w-8 h-8 shrink-0">
+          <div className="flex gap-2 pt-1">
+            <Avatar className="w-7 h-7 shrink-0">
               <AvatarFallback className="text-xs bg-primary/10 text-primary font-bold">{currentUser?.name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1 relative flex items-center bg-muted/30 rounded-3xl border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all pr-1">
-              <Textarea 
-                placeholder="Write a comment..." 
-                value={commentText} 
+              <Textarea
+                placeholder="Write a comment..."
+                value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -301,15 +339,15 @@ const PostCard = ({ post, currentUser, onUpdate, onDelete }) => {
                     addComment();
                   }
                 }}
-                className="min-h-[40px] max-h-[120px] resize-none border-0 focus-visible:ring-0 shadow-none bg-transparent py-2.5 px-4" 
+                className="min-h-[36px] max-h-[100px] resize-none border-0 focus-visible:ring-0 shadow-none bg-transparent py-2 px-3 text-[14px]"
               />
-              <Button 
-                size="icon" 
-                onClick={addComment} 
+              <Button
+                size="icon"
+                onClick={addComment}
                 disabled={!commentText.trim()}
-                className="rounded-full h-8 w-8 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50"
+                className="rounded-full h-7 w-7 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50"
               >
-                <Send className="w-4 h-4 ml-0.5" />
+                <Send className="w-3.5 h-3.5 ml-0.5" />
               </Button>
             </div>
           </div>
