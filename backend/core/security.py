@@ -26,11 +26,22 @@ def gen_bbid(name: str) -> str:
     prefix = "".join([c for c in (name or "").upper() if c.isalpha()])[:3] or "BBU"
     return f"BB-{prefix}{''.join(random.choices(string.digits, k=6))}"
 
+def admin_clean_user_dict(u: dict) -> dict:
+    """Removes sensitive internal fields but keeps data like GPS for admin view."""
+    if not u:
+        return u
+    u.pop("password_hash", None)
+    return u
+
 def clean_user_dict(u: dict) -> dict:
     """Removes sensitive fields from user dictionary before returning to frontend."""
     if not u:
         return u
     u.pop("password_hash", None)
+    u.pop("gps_lat", None)
+    u.pop("gps_lng", None)
+    u.pop("gps_permission_status", None)
+    u.pop("gps_updated_at", None)
     return u
 
 def get_user_by_id(uid: str) -> Optional[dict]:

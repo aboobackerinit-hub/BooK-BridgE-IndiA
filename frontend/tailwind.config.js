@@ -1,6 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ["class"],
+    safelist: [
+      { pattern: /^bg-(green|red|blue|orange|yellow|purple|gray|teal|amber)-(500|600)$/ },
+      'text-white'
+    ],
     content: [
     "./src/**/*.{js,jsx,ts,tsx}",
     "./public/index.html"

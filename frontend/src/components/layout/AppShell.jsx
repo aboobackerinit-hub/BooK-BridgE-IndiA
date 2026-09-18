@@ -6,6 +6,7 @@ import TopNav from "@/components/layout/TopNav";
 import MobileNav from "@/components/layout/MobileNav";
 import Footer from "@/components/layout/Footer";
 import { InstallBanner } from "@/components/InstallPrompt";
+import { PushNotificationPrompt } from "@/components/layout/PushNotificationPrompt";
 
 const AppShell = () => {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ const AppShell = () => {
       <Footer />
       <MobileNav />
       <InstallBanner />
+      <PushNotificationPrompt />
     </div>
   );
 };

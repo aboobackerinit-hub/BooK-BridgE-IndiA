@@ -6,6 +6,7 @@ import { PrefsProvider } from "@/context/PrefsContext";
 import { Toaster } from "@/components/ui/sonner";
 import AppShell from "@/components/layout/AppShell";
 import PageSkeleton from "@/components/ui/PageSkeleton";
+import LocationPrompt from "@/components/LocationPrompt";
 
 // BookBridge India Pages
 const LoginPage = React.lazy(() => import("@/pages/Auth").then(m => ({ default: m.LoginPage })));
@@ -88,6 +89,7 @@ function App() {
             </Routes>
           </Suspense>
         </BrowserRouter>
+        <LocationPrompt />
         <Toaster position="top-right" richColors />
       </PrefsProvider>
     </AuthProvider>

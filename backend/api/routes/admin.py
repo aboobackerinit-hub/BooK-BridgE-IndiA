@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends
 from backend.core.database import get_db
 from firebase_admin import firestore
-from backend.core.security import get_user_by_id, clean_user_dict
+from backend.core.security import get_user_by_id, clean_user_dict, admin_clean_user_dict
 from backend.api.dependencies import require_role
 from backend.models.schemas import UserUpdateIn, BookUpdateIn, AdminAnnouncementIn
 
@@ -60,7 +60,7 @@ def admin_users(user: dict = Depends(require_role("admin"))):
     for doc in docs:
         d = doc.to_dict()
         d["id"] = doc.id
-        results.append(clean_user_dict(d))
+        results.append(admin_clean_user_dict(d))
     return results
 
 @router.post("/reset-password")

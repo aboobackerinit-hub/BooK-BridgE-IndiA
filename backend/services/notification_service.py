@@ -151,6 +151,13 @@ def create_bulk_notification(
             batch.commit()
 
         logger.info(f"Bulk notification sent: {notif_type} to {count} users")
+        
+        # Fire bulk push notification
+        try:
+            dispatch_bulk_push(user_ids, title, body, data, action_url)
+        except Exception as push_err:
+            logger.warning(f"Bulk push dispatch error: {push_err}")
+            
         return count
 
     except Exception as e:
@@ -285,6 +292,69 @@ def dispatch_push(notification: dict) -> None:
                 
     except Exception as e:
         logger.warning(f"Push dispatch error for user {user_id[:8]}: {e}")
+
+def dispatch_bulk_push(user_ids: list[str], title: str, body: str, data: dict = None, action_url: str = None) -> None:
+    """
+    Push notification dispatch hook for bulk notifications (admin announcements).
+    Fetches tokens for all provided users in batches and sends multicast pushes.
+    """
+    if not user_ids:
+        return
+        
+    try:
+        import firebase_admin.messaging as messaging
+        db = get_db()
+        if not db:
+            return
+            
+        tokens = []
+        # Firestore 'in' queries are limited to 30 items. It's better to query the collection group 
+        # or fetch tokens per user, but since this is an admin task, we can afford a bit of delay,
+        # or query token collection group directly.
+        
+        # Fetching from collection group requires index, so let's just do sequential/chunked for now if list isn't huge.
+        for user_id in user_ids:
+            try:
+                tokens_docs = db.collection("users").document(user_id).collection("notification_tokens").stream()
+                for d in tokens_docs:
+                    t = d.to_dict().get("token")
+                    if t:
+                        tokens.append(t)
+            except Exception:
+                pass
+                
+        if not tokens:
+            return
+            
+        fcm_data = {
+            "action_url": str(action_url or "/"),
+            "title": str(title),
+            "body": str(body),
+        }
+        if data:
+            for k, v in data.items():
+                fcm_data[k] = str(v)
+                
+        # Multicast can take up to 500 tokens at once
+        chunk_size = 500
+        for i in range(0, len(tokens), chunk_size):
+            token_chunk = tokens[i:i + chunk_size]
+            message = messaging.MulticastMessage(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                data=fcm_data,
+                tokens=token_chunk,
+            )
+            response = messaging.send_each_for_multicast(message)
+            logger.info(f"Bulk FCM Push chunk sent to {len(token_chunk)} tokens. (Success: {response.success_count}, Fail: {response.failure_count})")
+            
+            # Since we don't map tokens back to user_ids easily here, we let the individual dispatch_push clean up bad tokens later,
+            # or we could delete them via a collection group query if we had an index, but it's safe to skip cleanup for bulk admin pushes.
+
+    except Exception as e:
+        logger.warning(f"Bulk push dispatch error: {e}")
 
 
 

@@ -1,21 +1,128 @@
 import logging
 import os
 import requests
+import random
+import uuid
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 import firebase_admin
-from firebase_admin import auth as firebase_auth
+from firebase_admin import auth as firebase_auth, firestore
 from backend.core.database import get_db
 from backend.core.config import FIREBASE_API_KEY
 from backend.core.security import gen_bbid, clean_user_dict, get_user_by_id
 from backend.models.schemas import (
     RegisterIn, LoginIn, ResetPasswordIn, ResetPasswordConfirmIn, 
-    ChangePasswordIn, DeleteAccountIn
+    ChangePasswordIn, DeleteAccountIn, RequestOtpIn, VerifyOtpIn
 )
+from pydantic import BaseModel
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+class GoogleLoginIn(BaseModel):
+    token: str
+
 from backend.api.dependencies import get_current_user, require_role
 from backend.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger("bookbridge.routes.auth")
+
+@router.post("/request-otp")
+def request_otp(body: RequestOtpIn):
+    email = body.email.strip().lower()
+    db = get_db()
+    
+    # Check if user already exists
+    try:
+        firebase_auth.get_user_by_email(email)
+        raise HTTPException(400, "This email is already registered. Please sign in instead.")
+    except firebase_auth.UserNotFoundError:
+        pass # Good, user doesn't exist
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error checking email existence: {e}")
+        raise HTTPException(500, "Something went wrong. Please try again.")
+
+    # Rate limiting / Check recent OTP
+    otps_ref = db.collection("otps")
+    recent = otps_ref.where("email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).limit(1).get()
+    
+    if recent:
+        doc_data = recent[0].to_dict()
+        created_at = doc_data.get("created_at")
+        if created_at:
+            # Firestore timestamps are DatetimeWithNanoseconds
+            if isinstance(created_at, datetime):
+                elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
+                if elapsed < 60: # 60 second cooldown
+                    raise HTTPException(429, "Too many attempts. Please try again later.")
+                    
+    # Generate OTP
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store OTP
+    otps_ref.add({
+        "email": email,
+        "otp": otp, # In a strictly secure env, hash this. For now, it's short-lived.
+        "created_at": firestore.SERVER_TIMESTAMP,
+        "expires_at": expires_at,
+        "attempts": 0,
+        "verified": False
+    })
+    
+    # Send Email
+    try:
+        body_text = f"Your BookBridge India verification code is: {otp}\n\nThis code will expire in 10 minutes.\nIf you did not request this, please ignore this email."
+        send_email(email, "Verify your BookBridge Account", body_text)
+    except Exception as e:
+        logger.error(f"Failed to send OTP email: {e}")
+        # In a real setup, don't fake the implementation. We fail if email fails.
+        raise HTTPException(500, "Could not send verification email. Please check configuration.")
+
+    return {"ok": True, "message": "OTP sent successfully"}
+
+@router.post("/verify-otp")
+def verify_otp(body: VerifyOtpIn):
+    email = body.email.strip().lower()
+    otp_input = body.otp.strip()
+    db = get_db()
+    
+    otps_ref = db.collection("otps")
+    recent = otps_ref.where("email", "==", email).where("verified", "==", False).order_by("created_at", direction=firestore.Query.DESCENDING).limit(1).get()
+    
+    if not recent:
+        raise HTTPException(400, "No pending verification found. Please request a new code.")
+        
+    doc = recent[0]
+    data = doc.to_dict()
+    doc_id = doc.id
+    
+    # Check expiration
+    expires_at = data.get("expires_at")
+    if expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "This verification code has expired. Please request a new code.")
+        
+    # Check attempts
+    attempts = data.get("attempts", 0)
+    if attempts >= 3:
+        raise HTTPException(400, "Too many attempts. Please request a new code.")
+        
+    if data.get("otp") != otp_input:
+        otps_ref.document(doc_id).update({"attempts": attempts + 1})
+        raise HTTPException(400, "Incorrect verification code. Please try again.")
+        
+    # Generate a secure verification token for the final register step
+    verification_token = str(uuid.uuid4())
+    
+    otps_ref.document(doc_id).update({
+        "verified": True,
+        "verification_token": verification_token
+    })
+    
+    return {"ok": True, "verification_token": verification_token}
+
 
 @router.post("/register")
 def register(body: RegisterIn):
@@ -26,6 +133,15 @@ def register(body: RegisterIn):
     
     email = body.email.strip().lower()
     name = body.name.strip()
+    
+    # Enforce OTP Verification
+    db = get_db()
+    if not body.verification_token:
+        raise HTTPException(400, "Email verification is required. Please verify your email first.")
+        
+    verified_docs = db.collection("otps").where("email", "==", email).where("verification_token", "==", body.verification_token).where("verified", "==", True).limit(1).get()
+    if not verified_docs:
+        raise HTTPException(400, "Invalid verification token. Please verify your email again.")
     try:
         # Create Firebase Auth user
         try:
@@ -78,10 +194,12 @@ def register(body: RegisterIn):
                 json=login_payload
             )
         if res.status_code == 200:
-            token = res.json().get("idToken")
-            return {"token": token, "user": clean_user_dict(row)}
+            data = res.json()
+            token = data.get("idToken")
+            refresh_token = data.get("refreshToken")
+            return {"token": token, "refreshToken": refresh_token, "user": clean_user_dict(row)}
         
-        return {"token": "firebase_token_pending", "user": clean_user_dict(row)}
+        return {"token": "firebase_token_pending", "refreshToken": "", "user": clean_user_dict(row)}
             
     except HTTPException as e:
         raise e
@@ -150,6 +268,7 @@ def login(body: LoginIn):
             
         data = res.json()
         token = data.get("idToken")
+        refresh_token = data.get("refreshToken")
         uid = data.get("localId")
         
         # Fetch user profile (auto-heals if missing in Firestore)
@@ -169,13 +288,83 @@ def login(body: LoginIn):
         if user.get("suspended"):
             raise HTTPException(403, "Account suspended. Contact admin.")
             
-        return {"token": token, "user": clean_user_dict(user)}
+        return {"token": token, "refreshToken": refresh_token, "user": clean_user_dict(user)}
         
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.error(f"Error in login: {str(e)}")
         raise HTTPException(500, "Internal Server Error during login")
+
+@router.post("/login-google")
+def login_google(body: GoogleLoginIn):
+    try:
+        # Verify Firebase Token
+        decoded_token = firebase_auth.verify_id_token(body.token)
+        uid = decoded_token["uid"]
+        email = decoded_token.get("email", "").lower()
+        
+        # Check if user exists in Firestore
+        user = get_user_by_id(uid)
+        
+        # If user doesn't exist by UID, check if they exist by Email (Account Linking)
+        if not user:
+            db = get_db()
+            users = db.collection("users").where("email", "==", email).limit(1).get()
+            if users:
+                user = users[0].to_dict()
+                user["id"] = users[0].id
+                
+        if not user:
+            raise HTTPException(404, "User not found. Please complete registration.")
+            
+        if user.get("suspended"):
+            raise HTTPException(403, "Account suspended. Contact admin.")
+            
+        # We can just return the same token since it's a valid Firebase token
+        # But we don't have a refresh token from verify_id_token.
+        # The frontend SDK manages refresh anyway if using Google Provider, 
+        # but for our local system, let's just return the idToken.
+        return {"token": body.token, "refreshToken": "", "user": clean_user_dict(user)}
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Google Login error: {e}")
+        raise HTTPException(401, "Invalid Google token")
+
+@router.post("/refresh")
+def refresh_token(body: RefreshIn):
+    try:
+        fallback_key = "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I"
+        api_key = FIREBASE_API_KEY if (FIREBASE_API_KEY and len(FIREBASE_API_KEY) > 10) else fallback_key
+        payload = {
+            "grant_type": "refresh_token",
+            "refresh_token": body.refresh_token
+        }
+        res = requests.post(
+            f"https://securetoken.googleapis.com/v1/token?key={api_key}",
+            json=payload
+        )
+        if res.status_code != 200:
+            res = requests.post(
+                f"https://securetoken.googleapis.com/v1/token?key={fallback_key}",
+                json=payload
+            )
+            
+        if res.status_code == 200:
+            data = res.json()
+            return {
+                "token": data.get("id_token"),
+                "refreshToken": data.get("refresh_token")
+            }
+        else:
+            raise HTTPException(401, "Invalid refresh token")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Refresh token error: {e}")
+        raise HTTPException(500, "Could not refresh token")
 
 @router.post("/reset-password")
 def reset_password(body: ResetPasswordIn):

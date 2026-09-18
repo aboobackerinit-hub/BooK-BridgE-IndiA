@@ -4,8 +4,9 @@ from backend.core.database import get_db
 from firebase_admin import firestore
 from backend.core.security import get_user_by_id, clean_user_dict
 from backend.api.dependencies import get_current_user
-from backend.models.schemas import ProfileUpdate, EmailPrefsIn
+from backend.models.schemas import ProfileUpdate, EmailPrefsIn, GPSLocationIn
 from backend.services.cloudinary_service import upload_base64_image, upload_fastapi_file
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -57,6 +58,22 @@ def update_me(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     updated = get_user_by_id(user["id"])
     updated = clean_user_dict(updated)
     return updated
+
+@router.put("/me/gps")
+def update_me_gps(body: GPSLocationIn, user: dict = Depends(get_current_user)):
+    db = get_db()
+    update = {
+        "gps_permission_status": body.gps_permission_status,
+        "gps_updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    if body.gps_permission_status == "granted" and body.gps_lat is not None and body.gps_lng is not None:
+        update["gps_lat"] = body.gps_lat
+        update["gps_lng"] = body.gps_lng
+        
+    db.collection("users").document(user["id"]).update(update)
+    
+    updated = get_user_by_id(user["id"])
+    return clean_user_dict(updated)
 
 @router.post("/me/avatar")
 async def upload_avatar(file: UploadFile = File(...), user: dict = Depends(get_current_user)):

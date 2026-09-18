@@ -162,6 +162,36 @@ const AdminDashboard = () => {
               </Select>
             </div>
 
+            <div className="pt-4 border-t border-border">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">PROFILE LOCATION</Label>
+              <div className="text-sm bg-muted/50 p-2 rounded-md space-y-1">
+                <div><span className="text-muted-foreground">Address:</span> {u.address || "Not provided"}</div>
+                <div><span className="text-muted-foreground">City:</span> {u.city || "Not provided"}</div>
+                <div><span className="text-muted-foreground">State:</span> {u.state || "Not provided"}</div>
+                <div><span className="text-muted-foreground">Pincode:</span> {u.pincode || "Not provided"}</div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">DEVICE LOCATION</Label>
+              <div className="text-sm bg-muted/50 p-2 rounded-md space-y-1">
+                <div><span className="text-muted-foreground">Permission:</span> {
+                  u.gps_permission_status === "granted" ? "Allowed" : 
+                  (u.gps_permission_status === "denied" || u.gps_permission_status === "error") ? "Not Granted" : "Unknown"
+                }</div>
+                <div><span className="text-muted-foreground">GPS:</span> {u.gps_lat && u.gps_lng ? "Available" : "Unavailable"}</div>
+                {u.gps_lat && u.gps_lng && (
+                  <>
+                    <div><span className="text-muted-foreground">Latitude:</span> {u.gps_lat}</div>
+                    <div><span className="text-muted-foreground">Longitude:</span> {u.gps_lng}</div>
+                  </>
+                )}
+                {u.gps_updated_at && (
+                  <div><span className="text-muted-foreground">Last Updated:</span> {new Date(u.gps_updated_at).toLocaleString()}</div>
+                )}
+              </div>
+            </div>
+
             <div className="pt-2 border-t border-border">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Reset User Password</Label>
               <div className="flex gap-2">
@@ -350,10 +380,30 @@ const AdminDashboard = () => {
               <Select value={f.color} onValueChange={v=>setF({...f, color: v})}>
                 <SelectTrigger><SelectValue/></SelectTrigger>
                 <SelectContent>
-                  {["green", "teal", "amber", "blue", "red", "purple"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {["green", "teal", "amber", "blue", "red", "purple", "orange", "yellow", "gray"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            
+            <div className="p-3 bg-muted/30 rounded-lg flex items-center justify-between border border-border">
+              <span className="text-sm font-medium text-muted-foreground">Live Preview:</span>
+              <div className={`shadow-sm px-2 py-0.5 rounded-full uppercase text-[10px] font-bold ${
+                {
+                  green: "bg-green-500 text-white hover:bg-green-600",
+                  red: "bg-red-500 text-white hover:bg-red-600",
+                  blue: "bg-blue-500 text-white hover:bg-blue-600",
+                  orange: "bg-orange-500 text-white hover:bg-orange-600",
+                  yellow: "bg-yellow-500 text-white hover:bg-yellow-600",
+                  purple: "bg-purple-500 text-white hover:bg-purple-600",
+                  gray: "bg-gray-500 text-white hover:bg-gray-600",
+                  teal: "bg-teal-500 text-white hover:bg-teal-600",
+                  amber: "bg-amber-500 text-white hover:bg-amber-600"
+                }[f.color] || "bg-gray-500 text-white hover:bg-gray-600"
+              }`}>
+                {f.name || "LABEL TEXT"}
+              </div>
+            </div>
+
             <div><Label>Priority (lower = shown first)</Label><Input type="number" value={f.priority} onChange={e=>setF({...f, priority: parseInt(e.target.value)||0})} /></div>
             <BookSelector selectedIds={f.bookIds || []} onChange={ids => setF({...f, bookIds: ids})} />
             <div className="grid grid-cols-2 gap-3">
@@ -496,7 +546,19 @@ const AdminDashboard = () => {
                 <Card key={l.id} className="p-4 flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Badge className={`bg-${l.color}-500 text-white hover:bg-${l.color}-600`}>{l.name}</Badge>
+                      <div className={`shadow-sm px-2 py-0.5 rounded-full uppercase text-[10px] font-bold ${
+                        {
+                          green: "bg-green-500 text-white hover:bg-green-600",
+                          red: "bg-red-500 text-white hover:bg-red-600",
+                          blue: "bg-blue-500 text-white hover:bg-blue-600",
+                          orange: "bg-orange-500 text-white hover:bg-orange-600",
+                          yellow: "bg-yellow-500 text-white hover:bg-yellow-600",
+                          purple: "bg-purple-500 text-white hover:bg-purple-600",
+                          gray: "bg-gray-500 text-white hover:bg-gray-600",
+                          teal: "bg-teal-500 text-white hover:bg-teal-600",
+                          amber: "bg-amber-500 text-white hover:bg-amber-600"
+                        }[l.color] || "bg-gray-500 text-white hover:bg-gray-600"
+                      }`}>{l.name}</div>
                       <span className="text-xs text-muted-foreground">Priority: {l.priority}</span>
                       {!l.enabled && <Badge variant="outline" className="text-muted-foreground">Disabled</Badge>}
                     </div>

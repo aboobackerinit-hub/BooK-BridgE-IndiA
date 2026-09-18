@@ -36,11 +36,19 @@ class RegisterIn(BaseModel):
     password: str = Field(..., min_length=6)
     name: str = Field(..., min_length=2)
     role: str = "user"
+    verification_token: Optional[str] = None
 
 
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
+
+class RequestOtpIn(BaseModel):
+    email: EmailStr
+
+class VerifyOtpIn(BaseModel):
+    email: EmailStr
+    otp: str
 
 
 class ResetPasswordIn(BaseModel):
@@ -99,6 +107,11 @@ class LocationUpdate(BaseModel):
     state: Optional[str] = None
     college_id: Optional[str] = None
     college_name: Optional[str] = None
+
+class GPSLocationIn(BaseModel):
+    gps_lat: Optional[float] = None
+    gps_lng: Optional[float] = None
+    gps_permission_status: str # 'granted' or 'denied' or 'error'
 
 
 # ── Books ─────────────────────────────────────────────────────────────

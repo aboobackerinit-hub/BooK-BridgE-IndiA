@@ -97,6 +97,18 @@ const PromotionalBanner = ({ banner }) => {
   return wrapper;
 };
 
+const LABEL_STYLES = {
+  green: "bg-green-500 text-white hover:bg-green-600",
+  red: "bg-red-500 text-white hover:bg-red-600",
+  blue: "bg-blue-500 text-white hover:bg-blue-600",
+  orange: "bg-orange-500 text-white hover:bg-orange-600",
+  yellow: "bg-yellow-500 text-white hover:bg-yellow-600",
+  purple: "bg-purple-500 text-white hover:bg-purple-600",
+  gray: "bg-gray-500 text-white hover:bg-gray-600",
+  teal: "bg-teal-500 text-white hover:bg-teal-600",
+  amber: "bg-amber-500 text-white hover:bg-amber-600"
+};
+
 const BookCard = ({ book, labels = [] }) => (
   <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
     className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block relative">
@@ -105,9 +117,14 @@ const BookCard = ({ book, labels = [] }) => (
       
       {labels.length > 0 && (
         <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[80%] z-20 pointer-events-none">
-          {labels.slice(0, 3).map((l, i) => (
-            <Badge key={i} className={`bg-${l.color}-500 text-white shadow-sm text-[10px] px-2 py-0.5 uppercase border-0 w-max`}>{l.name}</Badge>
-          ))}
+          {labels.slice(0, 3).map((l, i) => {
+            const colorClass = LABEL_STYLES[l.colorPreset || l.color] || LABEL_STYLES.gray;
+            return (
+              <div key={i} className={`shadow-sm text-[10px] px-2 py-0.5 rounded-full uppercase font-bold text-center w-max ${colorClass}`}>
+                {l.name}
+              </div>
+            );
+          })}
         </div>
       )}
 
