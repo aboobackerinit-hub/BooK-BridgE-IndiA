@@ -145,6 +145,7 @@ export const AuthProvider = ({ children }) => {
       
       const firebaseConfig = {
         apiKey: "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I",
+        authDomain: "book-bridge-india-hopwhi.firebaseapp.com",
         projectId: "book-bridge-india-hopwhi",
         messagingSenderId: "725916822917",
         appId: "1:725916822917:web:bookbridge"
