@@ -220,6 +220,7 @@ export const RegisterPage = () => {
     if (routerState.fromGoogle && routerState.email) {
       handleRequestOtp(routerState.email);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
