@@ -109,63 +109,71 @@ const LABEL_STYLES = {
   amber: "bg-amber-500 text-white hover:bg-amber-600"
 };
 
-const BookCard = ({ book, labels = [] }) => (
-  <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
-    className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden block relative">
-    <div className="aspect-[3/4] bg-muted overflow-hidden relative">
-      <OptimizedImage src={book.image_url} alt={book.title} fallbackType="book" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-      
-      {labels.length > 0 && (
-        <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[80%] z-20 pointer-events-none">
-          {labels.slice(0, 3).map((l, i) => {
-            const colorClass = LABEL_STYLES[l.colorPreset || l.color] || LABEL_STYLES.gray;
-            return (
-              <div key={i} className={`shadow-sm text-[10px] px-2 py-0.5 rounded-full uppercase font-bold text-center w-max ${colorClass}`}>
-                {l.name}
-              </div>
-            );
-          })}
-        </div>
-      )}
+const BookCard = ({ book, labels = [] }) => {
+  const isNewWithOffer = book.condition === "New" && book.originalPrice > (book.offerPrice || book.originalPrice) && (book.offerPrice || 0) > 0;
+  const currentPrice = isNewWithOffer ? book.offerPrice : book.price;
 
-      <button
-        onClick={(e) => handleShare(e, book)}
-        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm text-foreground hover:bg-background flex items-center justify-center shadow-sm transition-all opacity-90 group-hover:opacity-100 z-10"
-        title="Share book"
-        aria-label="Share book"
-        data-testid={`share-book-${book.id}`}
-      >
-        <Share2 className="w-3.5 h-3.5" />
-      </button>
-      {book.stock <= 0 && (
-        <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
-          <Badge variant="destructive" className="px-3 py-1 font-semibold shadow-md">Out of Stock</Badge>
-        </div>
-      )}
-    </div>
-    <div className="p-4">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <h3 className="font-serif text-base font-semibold leading-tight line-clamp-2">{book.title}</h3>
-        {book.featured && <Badge className="bg-accent text-accent-foreground shrink-0">Featured</Badge>}
-      </div>
-      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{book.author}</p>
-      <div className="flex items-center justify-between">
-        {book.condition === "New" && book.originalPrice > (book.offerPrice || book.originalPrice) && (book.offerPrice || 0) > 0 ? (
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-semibold text-primary">₹{book.offerPrice}</span>
-            <strike className="text-muted-foreground text-[10px]">₹{book.originalPrice}</strike>
-            <span className="text-green-600 dark:text-green-400 text-[10px] font-semibold">
-              {Math.floor(((book.originalPrice - book.offerPrice) / book.originalPrice) * 100)}% off
-            </span>
+  return (
+    <Link to={`/book/${book.id}`} data-testid={`book-card-${book.id}`}
+      className="group rounded-2xl border border-border bg-card hover-lift overflow-hidden flex flex-col relative h-full">
+      <div className="aspect-[3/4] bg-muted overflow-hidden relative shrink-0">
+        <OptimizedImage src={book.image_url} alt={book.title} fallbackType="book" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        
+        {labels.length > 0 && (
+          <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[80%] z-20 pointer-events-none">
+            {labels.slice(0, 3).map((l, i) => {
+              const colorClass = LABEL_STYLES[l.colorPreset || l.color] || LABEL_STYLES.gray;
+              return (
+                <div key={i} className={`shadow-sm text-[10px] px-2 py-0.5 rounded-full uppercase font-bold text-center w-max ${colorClass}`}>
+                  {l.name}
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          <span className="font-mono font-semibold text-primary">₹{book.price}</span>
         )}
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{book.category}</span>
+
+        <button
+          onClick={(e) => handleShare(e, book)}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm text-foreground hover:bg-background flex items-center justify-center shadow-sm transition-all opacity-90 group-hover:opacity-100 z-10"
+          title="Share book"
+          aria-label="Share book"
+          data-testid={`share-book-${book.id}`}
+        >
+          <Share2 className="w-3.5 h-3.5" />
+        </button>
+        {book.stock <= 0 && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center">
+            <Badge variant="destructive" className="px-3 py-1 font-semibold shadow-md">Out of Stock</Badge>
+          </div>
+        )}
       </div>
-    </div>
-  </Link>
-);
+      <div className="p-3 md:p-4 flex flex-col flex-1">
+        <div className="flex items-start justify-between gap-1.5 md:gap-2 mb-1">
+          <h3 className="font-serif text-sm md:text-base font-semibold leading-tight line-clamp-2">{book.title}</h3>
+          {book.featured && <Badge className="bg-accent text-accent-foreground text-[10px] px-1.5 py-0 shrink-0">Featured</Badge>}
+        </div>
+        <p className="text-[10px] md:text-xs text-muted-foreground mb-3 line-clamp-2">{book.author}</p>
+        
+        <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1.5 mt-auto">
+          {isNewWithOffer ? (
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 leading-none">
+              <span className="font-mono font-semibold text-primary text-sm md:text-base">₹{currentPrice}</span>
+              <strike className="text-muted-foreground text-[10px]">₹{book.originalPrice}</strike>
+              <span className="text-green-600 dark:text-green-400 text-[10px] font-semibold whitespace-nowrap">
+                {Math.floor(((book.originalPrice - book.offerPrice) / book.originalPrice) * 100)}% off
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-baseline leading-none">
+              <span className="font-mono font-semibold text-primary text-sm md:text-base">₹{currentPrice}</span>
+            </div>
+          )}
+          <span className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 leading-none pb-0.5">{book.category}</span>
+        </div>
+      </div>
+    </Link>
+  );
+};
 
 const StorePage = () => {
   const [books, setBooks] = useState([]);

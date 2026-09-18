@@ -46,8 +46,8 @@ const AuthLayout = ({ children }) => (
     </div>
     
     {/* Right Side Form */}
-    <div className="flex items-center justify-center p-6 md:p-12 relative z-10 min-h-screen lg:min-h-0">
-      <div className="w-full max-w-md p-8 md:p-10 rounded-[2rem] bg-white/60 dark:bg-black/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover-lift transition-all duration-500">
+    <div className="flex items-center justify-center p-4 md:p-12 relative z-10 min-h-screen lg:min-h-0">
+      <div className="w-full max-w-md p-6 lg:p-10 rounded-[2rem] bg-white/60 dark:bg-black/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover-lift transition-all duration-500">
         {children}
       </div>
     </div>
@@ -149,15 +149,15 @@ export const LoginPage = () => {
 
   return (
     <AuthLayout>
-      <div className="mb-8 lg:hidden flex items-center gap-2">
-        <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-9 h-9 rounded-xl object-contain shadow-md" />
-        <div className="font-serif font-bold text-xl">BookBridge India</div>
+      <div className="mb-5 lg:mb-8 lg:hidden flex items-center gap-2">
+        <img src="/pwa-192x192.png" alt="BookBridge Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl object-contain shadow-md" />
+        <div className="font-serif font-bold text-lg lg:text-xl">BookBridge India</div>
       </div>
-      <div className="mb-8">
-        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Welcome back</div>
-        <h2 className="font-serif text-4xl">Login to your account</h2>
+      <div className="mb-5 lg:mb-8">
+        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1 lg:mb-2">Welcome back</div>
+        <h2 className="font-serif text-3xl lg:text-4xl">Login to your account</h2>
       </div>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-3 lg:space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
@@ -173,7 +173,7 @@ export const LoginPage = () => {
           <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
             data-testid="login-password-input" placeholder="••••••••" />
         </div>
-        <Button type="submit" disabled={loading} className="w-full rounded-full h-11" data-testid="login-submit-btn">
+        <Button type="submit" disabled={loading} className="w-full rounded-full h-11 lg:h-12 lg:mt-2" data-testid="login-submit-btn">
           {loading ? "Signing in..." : "Sign in"}
         </Button>
         <Button 
@@ -181,13 +181,13 @@ export const LoginPage = () => {
           variant="outline" 
           disabled={loading} 
           onClick={handleGoogleLogin}
-          className="w-full rounded-full h-11"
+          className="w-full rounded-full h-11 lg:h-12"
         >
           <GoogleIcon />
           Continue with Google
         </Button>
       </form>
-      <div className="mt-6 text-sm text-muted-foreground text-center">
+      <div className="mt-4 lg:mt-6 text-sm text-muted-foreground text-center">
         New to BookBridge? <Link to="/register" className="text-primary font-medium hover:underline" data-testid="link-to-register">Create an account</Link>
       </div>
     </AuthLayout>
