@@ -95,7 +95,7 @@ export const LoginPage = () => {
         navigate("/register", { state: { email: res.email, name: res.name, fromGoogle: true } });
       }
     } catch (err) {
-      toast.error("Google sign-in was cancelled or failed.");
+      toast.error(`Google sign-in failed: ${err.message || err.code || err}`);
     } finally {
       setLoading(false);
     }

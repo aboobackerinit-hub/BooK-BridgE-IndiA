@@ -374,7 +374,10 @@ const BookDetail = () => {
                     <SelectTrigger data-testid="edit-condition-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="New">Brand New</SelectItem>
-                      <SelectItem value="Used">Used - Good</SelectItem>
+                      <SelectItem value="Like New">Like New</SelectItem>
+                      <SelectItem value="Used - Good">Used - Good</SelectItem>
+                      <SelectItem value="Acceptable">Acceptable</SelectItem>
+                      <SelectItem value="Poor">Poor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -15,6 +15,16 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import ImageUpload from "@/components/ImageUpload";
+import { renderToStaticMarkup } from "react-dom/server";
+import Terms from "@/pages/legal/Terms";
+import Privacy from "@/pages/legal/Privacy";
+import MarketplaceRules from "@/pages/legal/MarketplaceRules";
+import Refunds from "@/pages/legal/Refunds";
+import Prohibited from "@/pages/legal/Prohibited";
+import Safety from "@/pages/legal/Safety";
+import IntellectualProperty from "@/pages/legal/IntellectualProperty";
+import Grievance from "@/pages/legal/Grievance";
+import FAQ from "@/pages/legal/FAQ";
 
 const STATUSES = ["New", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
 
@@ -519,7 +529,24 @@ const AdminDashboard = () => {
     useEffect(() => {
       setLoading(true);
       api.get(`/legal/${slug}`).then(res => {
-        setContent(res.data.content !== "Content not found or being updated." ? res.data.content : "");
+        if (res.data.content && res.data.content !== "Content not found or being updated.") {
+          setContent(res.data.content);
+        } else {
+          // Render the hardcoded React component to an HTML string as the default value
+          const fallbacks = {
+            "terms": <Terms />,
+            "privacy": <Privacy />,
+            "marketplace-rules": <MarketplaceRules />,
+            "refunds": <Refunds />,
+            "prohibited": <Prohibited />,
+            "safety": <Safety />,
+            "ip": <IntellectualProperty />,
+            "grievance": <Grievance />,
+            "faq": <FAQ />
+          };
+          const fallbackHtml = renderToStaticMarkup(fallbacks[slug]);
+          setContent(fallbackHtml);
+        }
       }).catch(() => setContent("")).finally(() => setLoading(false));
     }, [slug]);
 

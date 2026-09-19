@@ -65,8 +65,11 @@ const BookForm = ({ initial, onSave, categories }) => {
             <Select value={f.condition} onValueChange={(v) => setF({ ...f, condition: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="New">New</SelectItem>
-                <SelectItem value="Used">Used</SelectItem>
+                <SelectItem value="New">Brand New</SelectItem>
+                <SelectItem value="Like New">Like New</SelectItem>
+                <SelectItem value="Used - Good">Used - Good</SelectItem>
+                <SelectItem value="Acceptable">Acceptable</SelectItem>
+                <SelectItem value="Poor">Poor</SelectItem>
               </SelectContent>
             </Select>
           </div>
