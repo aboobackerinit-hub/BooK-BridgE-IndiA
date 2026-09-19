@@ -21,6 +21,7 @@ from backend.api.routes import (
     payments,
     gamification,
     promotions,
+    legal,
 )
 
 
@@ -46,5 +47,6 @@ api_router.include_router(recommendations.router)
 api_router.include_router(share.router)
 api_router.include_router(gamification.router)
 api_router.include_router(promotions.router)
+api_router.include_router(legal.router)
 
 

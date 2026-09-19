@@ -498,6 +498,75 @@ const AdminDashboard = () => {
     );
   };
 
+  const LegalPagesEditor = () => {
+    const [slug, setSlug] = useState("terms");
+    const [content, setContent] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const pages = [
+      { id: "terms", name: "Terms & Conditions" },
+      { id: "privacy", name: "Privacy Policy" },
+      { id: "marketplace-rules", name: "Marketplace Rules" },
+      { id: "refunds", name: "Refunds & Cancellations" },
+      { id: "prohibited", name: "Prohibited Items" },
+      { id: "safety", name: "Safety Tips" },
+      { id: "ip", name: "Intellectual Property" },
+      { id: "grievance", name: "Grievance Officer" },
+      { id: "faq", name: "FAQ" }
+    ];
+
+    useEffect(() => {
+      setLoading(true);
+      api.get(`/legal/${slug}`).then(res => {
+        setContent(res.data.content !== "Content not found or being updated." ? res.data.content : "");
+      }).catch(() => setContent("")).finally(() => setLoading(false));
+    }, [slug]);
+
+    const handleSave = async () => {
+      setSaving(true);
+      try {
+        await api.put(`/legal/${slug}`, { content });
+        toast.success("Page updated successfully!");
+      } catch (err) {
+        toast.error("Failed to update page");
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <Card className="p-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-serif">Legal Pages Editor</h2>
+          <Select value={slug} onValueChange={setSlug}>
+            <SelectTrigger className="w-[250px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pages.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-2 block text-muted-foreground text-xs uppercase tracking-wider">HTML Content (Can include HTML tags like &lt;h1&gt;, &lt;p&gt;, &lt;ul&gt;)</Label>
+          <textarea 
+            className="w-full min-h-[400px] p-3 border rounded-md font-mono text-sm" 
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            disabled={loading}
+            placeholder="<div><h1>Your Title</h1><p>Your content...</p></div>"
+          ></textarea>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saving || loading}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
   const Stat = ({ icon: Icon, label, value, color }) => (
     <Card className="p-5">
       <div className="flex items-center gap-3">
@@ -533,6 +602,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="orders" data-testid="admin-tab-orders">Orders</TabsTrigger>
           <TabsTrigger value="posts" data-testid="admin-tab-posts">Posts</TabsTrigger>
           <TabsTrigger value="store_content" data-testid="admin-tab-store-content">Store Content</TabsTrigger>
+          <TabsTrigger value="legal_pages" data-testid="admin-tab-legal-pages">Legal Pages</TabsTrigger>
         </TabsList>
 
         <TabsContent value="store_content" className="mt-4 space-y-8">
@@ -779,6 +849,10 @@ const AdminDashboard = () => {
               </Card>
             ))
           )}
+        </TabsContent>
+
+        <TabsContent value="legal_pages" className="mt-4 space-y-4">
+          <LegalPagesEditor />
         </TabsContent>
       </Tabs>
     </div>

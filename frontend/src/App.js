@@ -26,6 +26,7 @@ const AdminDashboard = React.lazy(() => import("@/pages/AdminDashboard"));
 
 // Legal Pages
 const { LegalLayout } = require("@/pages/legal/LegalLayout");
+const DynamicLegalPage = React.lazy(() => import("@/pages/legal/DynamicLegalPage"));
 const Terms = React.lazy(() => import("@/pages/legal/Terms"));
 const Privacy = React.lazy(() => import("@/pages/legal/Privacy"));
 const MarketplaceRules = React.lazy(() => import("@/pages/legal/MarketplaceRules"));
@@ -74,15 +75,15 @@ function App() {
                 {/* LEGAL HUB */}
                 <Route path="/legal" element={<LegalLayout />}>
                   <Route index element={<Navigate to="terms" replace />} />
-                  <Route path="terms" element={<Terms />} />
-                  <Route path="privacy" element={<Privacy />} />
-                  <Route path="marketplace-rules" element={<MarketplaceRules />} />
-                  <Route path="refunds" element={<Refunds />} />
-                  <Route path="prohibited" element={<Prohibited />} />
-                  <Route path="safety" element={<Safety />} />
-                  <Route path="ip" element={<IntellectualProperty />} />
-                  <Route path="grievance" element={<Grievance />} />
-                  <Route path="faq" element={<FAQ />} />
+                  <Route path="terms" element={<DynamicLegalPage slug="terms" FallbackComponent={Terms} />} />
+                  <Route path="privacy" element={<DynamicLegalPage slug="privacy" FallbackComponent={Privacy} />} />
+                  <Route path="marketplace-rules" element={<DynamicLegalPage slug="marketplace-rules" FallbackComponent={MarketplaceRules} />} />
+                  <Route path="refunds" element={<DynamicLegalPage slug="refunds" FallbackComponent={Refunds} />} />
+                  <Route path="prohibited" element={<DynamicLegalPage slug="prohibited" FallbackComponent={Prohibited} />} />
+                  <Route path="safety" element={<DynamicLegalPage slug="safety" FallbackComponent={Safety} />} />
+                  <Route path="ip" element={<DynamicLegalPage slug="ip" FallbackComponent={IntellectualProperty} />} />
+                  <Route path="grievance" element={<DynamicLegalPage slug="grievance" FallbackComponent={Grievance} />} />
+                  <Route path="faq" element={<DynamicLegalPage slug="faq" FallbackComponent={FAQ} />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/store" replace />} />

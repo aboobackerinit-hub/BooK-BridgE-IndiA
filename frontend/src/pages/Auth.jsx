@@ -315,6 +315,19 @@ export const RegisterPage = () => {
               <Input id="email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="you@example.com" />
             </div>
+            
+            <div className="flex items-start gap-2 pt-1">
+              <input 
+                type="checkbox" 
+                id="terms" 
+                required 
+                className="mt-1 shrink-0 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+              />
+              <Label htmlFor="terms" className="text-xs text-muted-foreground leading-tight">
+                I agree to the <a href="https://boo-k-bridg-e-indi-a.vercel.app/legal/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Terms & Conditions</a> and <a href="https://boo-k-bridg-e-indi-a.vercel.app/legal/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Privacy Policy</a>.
+              </Label>
+            </div>
+
             <Button type="submit" disabled={loading} className="w-full rounded-full h-11">
               {loading ? "Sending code..." : "Continue"}
             </Button>

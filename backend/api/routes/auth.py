@@ -46,7 +46,8 @@ def request_otp(body: RequestOtpIn):
 
     # Rate limiting / Check recent OTP
     otps_ref = db.collection("otps")
-    recent = otps_ref.where("email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).limit(1).get()
+    recent_docs = otps_ref.where("email", "==", email).get()
+    recent = sorted(recent_docs, key=lambda x: x.to_dict().get("created_at") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     
     if recent:
         doc_data = recent[0].to_dict()
@@ -90,7 +91,8 @@ def verify_otp(body: VerifyOtpIn):
     db = get_db()
     
     otps_ref = db.collection("otps")
-    recent = otps_ref.where("email", "==", email).where("verified", "==", False).order_by("created_at", direction=firestore.Query.DESCENDING).limit(1).get()
+    recent_docs = otps_ref.where("email", "==", email).where("verified", "==", False).get()
+    recent = sorted(recent_docs, key=lambda x: x.to_dict().get("created_at") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     
     if not recent:
         raise HTTPException(400, "No pending verification found. Please request a new code.")
@@ -316,7 +318,20 @@ def login_google(body: GoogleLoginIn):
                 user["id"] = users[0].id
                 
         if not user:
-            raise HTTPException(404, "User not found. Please complete registration.")
+            db = get_db()
+            name = decoded_token.get("name", email.split("@")[0].capitalize())
+            row = {
+                "email": email,
+                "name": name,
+                "role": "user",
+                "bbid": gen_bbid(name),
+            }
+            db_row = dict(row)
+            db_row["created_at"] = firestore.SERVER_TIMESTAMP
+            db.collection("users").document(uid).set(db_row)
+            
+            user = row
+            user["id"] = uid
             
         if user.get("suspended"):
             raise HTTPException(403, "Account suspended. Contact admin.")
