@@ -143,16 +143,23 @@ export const AuthProvider = ({ children }) => {
       const { initializeApp, getApps } = await import("firebase/app");
       const { getAuth, signInWithPopup, GoogleAuthProvider } = await import("firebase/auth");
       
+      // IMPORTANT: appId must be the REAL Firebase Web App ID from Firebase Console.
+      // Get it from: Firebase Console → Project Settings → Your Apps → Web App → App ID
+      // It looks like: 1:725916822917:web:ACTUAL_HASH_HERE
+      // Until you set it below, Google login may fail with auth/invalid-app errors.
       const firebaseConfig = {
         apiKey: "AIzaSyC1_gTlEJ_PMmd4GHdbforK7l3R9IcOQ9I",
         authDomain: "book-bridge-india-hopwhi.firebaseapp.com",
         projectId: "book-bridge-india-hopwhi",
         messagingSenderId: "725916822917",
+        // TODO: Replace this with your real Web App ID from Firebase Console → Project Settings
         appId: "1:725916822917:web:bookbridge"
       };
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
+      provider.addScope("email");
+      provider.addScope("profile");
       
       const result = await signInWithPopup(auth, provider);
       
@@ -171,14 +178,30 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: safeUser };
       } catch (backendErr) {
         if (backendErr.response && backendErr.response.status === 404) {
-          // User not found in DB. Need to register.
+          // User not found in DB — redirect to registration with Google data pre-filled
           return { success: false, email: result.user.email, name: result.user.displayName };
         }
         throw backendErr;
       }
     } catch (err) {
-      console.error("Google Auth Error", err);
-      throw err;
+      // Map Firebase error codes to human-readable messages
+      const code = err.code || "";
+      const friendlyErrors = {
+        "auth/unauthorized-domain": "Google sign-in is not configured for this domain. Please contact support or add this domain to Firebase Authorized Domains.",
+        "auth/popup-blocked": "Your browser blocked the Google sign-in popup. Please allow pop-ups for this site and try again.",
+        "auth/popup-closed-by-user": "Google sign-in was cancelled. Please try again.",
+        "auth/cancelled-popup-request": "Google sign-in was cancelled. Please try again.",
+        "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase. Please contact support.",
+        "auth/account-exists-with-different-credential": "An account already exists with this email using a different sign-in method. Please sign in with your password.",
+        "auth/network-request-failed": "Network error. Please check your internet connection and try again.",
+        "auth/invalid-api-key": "Firebase configuration error (invalid API key). Please contact support.",
+        "auth/app-not-authorized": "This app is not authorized to use Firebase Authentication. Check Firebase Console configuration.",
+      };
+      const message = friendlyErrors[code] || `Google sign-in failed: ${code || err.message || "Unknown error"}`;
+      console.error("[BookBridge] Google Auth Error — code:", code, "full error:", err);
+      const enhancedErr = new Error(message);
+      enhancedErr.code = code;
+      throw enhancedErr;
     }
   };
 

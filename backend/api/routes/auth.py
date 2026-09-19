@@ -22,7 +22,7 @@ class GoogleLoginIn(BaseModel):
     token: str
 
 from backend.api.dependencies import get_current_user, require_role
-from backend.services.email import send_email
+from backend.services.email import send_email, send_otp_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger("bookbridge.routes.auth")
@@ -75,14 +75,17 @@ def request_otp(body: RequestOtpIn):
     
     # Send Email
     try:
-        body_text = f"Your BookBridge India verification code is: {otp}\n\nThis code will expire in 10 minutes.\nIf you did not request this, please ignore this email."
-        send_email(email, "Verify your BookBridge Account", body_text)
+        send_otp_email(email, otp)
     except Exception as e:
-        logger.error(f"Failed to send OTP email: {e}. Falling back to 123456 for testing.")
-        # For testing without SMTP, we overwrite the OTP in DB to 123456
-        doc_ref.update({"otp": "123456"})
+        logger.error(f"Failed to send OTP email to {email}: {e}")
+        # Clean up the OTP document since we cannot deliver it
+        try:
+            doc_ref.delete()
+        except Exception:
+            pass
+        raise HTTPException(500, "We could not send the verification email. Please check the email address and try again. If this persists, contact support.")
 
-    return {"ok": True, "message": "OTP sent successfully (If email failed, use 123456 for testing)"}
+    return {"ok": True, "message": "Verification code sent to your email."}
 
 @router.post("/verify-otp")
 def verify_otp(body: VerifyOtpIn):
